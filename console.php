@@ -1,9 +1,11 @@
 <?php
 
-define('PHP_JOBS_ROOT_PATH', __DIR__);
+define('GINO_JOBS_ROOT_PATH', __DIR__);
 
 
-require_once PHP_JOBS_ROOT_PATH . '/vender/autoload.php';
+require_once GINO_JOBS_ROOT_PATH . '/vendor/autoload.php';
 
-$console = new Gino\Jobs\Console();
+$config = include(GINO_JOBS_ROOT_PATH . '/conf/config.php');
+
+$console = new Gino\Jobs\Console($config);
 $console->run();

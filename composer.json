@@ -1,0 +1,24 @@
+{
+    "name": "binsuper/php-jobs",
+    "type": "framework",
+    "authors": [
+        {
+            "name": "Gino Huang",
+            "email": "binsuper@126.com"
+        }
+    ],
+    "license": "MIT",  
+    "require": {
+        "php": ">=7.1.0",  
+        "php-amqplib/php-amqplib": "^2.8"
+    },
+    "autoload": {
+        "psr-4": {
+            "Gino\\Jobs\\": "app",
+            "Gino\\Jobs\\Core": "app/core"
+        }
+    },
+    "bin": [
+        "console"
+    ]
+}

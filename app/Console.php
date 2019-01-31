@@ -2,9 +2,9 @@
 
 namespace Gino\Jobs;
 
-use Gino\Jobs\Core\IFace\ILogger;
 use Gino\Jobs\Core\Logger;
 use Gino\Jobs\Core\Config;
+use Gino\Jobs\Core\Process;
 
 /**
  * 控制台
@@ -13,23 +13,20 @@ use Gino\Jobs\Core\Config;
  */
 class Console {
 
-    /**
-     *
-     * @var ILogger
-     */
     protected $_logger;
-    protected $_config = [];
 
     public function __construct(array $config) {
-        //校验配置参数
+        //检测配置信息
         if (empty($config['log']) || empty($config['log']['log_dir'])) {
             die('config log.log_dir must be set' . PHP_EOL);
         }
-        //配置
+
+        //初始化配置
         Config::setConfig($config);
-        $this->_config = $config;
-        Config::getConfig('log_dir', 'log');
-        $this->_logger = Logger::getLogger(Config::getConfig('log', 'log_dir'), Config::getConfig('log', 'log_file', ''));
+        Logger::regist(Config::getConfig('log', 'log_dir'), Config::getConfig('log', 'log_file', ''));
+
+        //初始化对象
+        $this->_logger = Logger::getLogger();
     }
 
     /**
@@ -40,16 +37,54 @@ class Console {
     public function run() {
         global $argv;
         $command_args = array_slice($argv, 1);
+        $act          = $command_args[0] ?? 'help';
 
-        $this->_logger->log('11');
-        $this->_logger->log('22');
-        $this->_logger->log('33');
-        $this->_logger->log('44');
-        $this->_logger->log('55');
-        $this->_logger->log('66');
-        $this->_logger->log('77');
-        $this->_logger->log('88');
-        $this->_logger->flush();
+        switch ($act) {
+            case 'help': //打印帮助信息
+                $this->printHelpMessage();
+                break;
+            case 'start': //开始运行
+                $this->start();
+                break;
+            case 'stop': //停止运行
+                break;
+            case 'restart': //重启
+                break;
+        }
+    }
+
+    /**
+     * 打印帮助信息
+     */
+    public function printHelpMessage() {
+        $txt = <<<HELP
+
+{#y}Usage:
+{##}  command [options] [arguments]
+
+{#y}Options:
+{##}
+{#y}Available commands:
+{#g}  help          {##}Displays help message
+{#g}  start         {##}start the program
+{#g}  stop          {##}stop the program
+{#g}  restart       {##}restart the program
+
+HELP;
+        $rep = [
+            '{#y}' => "\033[0;33m", //黄色
+            '{#g}' => "\033[0;32m", //绿色
+            '{##}' => "\033[0m" // 清空颜色
+        ];
+        echo strtr($txt, $rep);
+    }
+
+    /**
+     * 启动程序
+     */
+    public function start() {
+        $master_process = new Process();
+        $master_process->start();
     }
 
 }

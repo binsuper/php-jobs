@@ -23,6 +23,7 @@ class Console {
 
         //初始化配置
         Config::setConfig($config);
+        //初始化日志实例
         Logger::regist(Config::getConfig('log', 'log_dir'), Config::getConfig('log', 'log_file', ''));
 
         //初始化对象
@@ -47,8 +48,10 @@ class Console {
                 $this->start();
                 break;
             case 'stop': //停止运行
+                $this->stop();
                 break;
             case 'restart': //重启
+                $this->restart();
                 break;
         }
     }
@@ -80,11 +83,26 @@ HELP;
     }
 
     /**
-     * 启动程序
+     * 启动进程
      */
     public function start() {
         $master_process = new Process();
         $master_process->start();
+    }
+
+    /**
+     * 停止进程
+     */
+    public function stop() {
+        
+    }
+
+    /**
+     * 重启进程
+     */
+    public function restart() {
+        $this->stop();
+        $this->start();
     }
 
 }

@@ -40,16 +40,12 @@ class Process {
         mkdirs($this->__pid_dir);
         $this->__process_log_file = strtr($config['process_log_file'] ?? 'process.log', ['.log' => '']);
         $this->_processName       = $config['process_name'] ?? ':php-jobs';
-
-        //运行
-        $this->_init();
     }
 
     /**
      * 初始化
      */
     protected function _init() {
-
         //启动进程
         \Swoole\Process::daemon(); //使当前进程蜕变为一个守护进程
         $this->__pid = getmypid();
@@ -75,6 +71,7 @@ class Process {
         @unlink($this->__pid_file);
         @unlink($this->__pid_info_file);
         $this->_logger->log('master process exit', Logger::LEVEL_INFO, $this->__process_log_file);
+        $this->_logger->flush();
         sleep(1);
         exit();
     }
@@ -103,7 +100,7 @@ class Process {
      * 获取主进程的信息
      * @return array
      */
-    private function __getMasterInfo(string $key = ''): array {
+    public function getMasterInfo(string $key = ''): array {
         $data = file_get_contents($this->__pid_info_file);
         if (false === $data) {
             throw new \RuntimeException('can not read master-info file with pid:' . $this->__pid);
@@ -127,6 +124,7 @@ class Process {
      * 启动进程
      */
     public function start() {
+        $this->_init();
         $this->_registSignal();
         $this->_forkTopics();
     }
@@ -142,6 +140,9 @@ class Process {
                 $worker = new Worker(function($worker) use($job) {
                     $this->_checkMpid($worker);
                     $this->__setProcessName('worker ' . $this->_processName);
+                    do {
+                        $this->__status = $this->getMasterInfo('status');
+                    } while (self::STATUS_RUNNING == $this->__status);
                 });
                 $pid                   = $worker->start();
                 $this->__workers[$pid] = $worker;
@@ -165,12 +166,12 @@ class Process {
             $this->_killMaster();
         });
 
-        //待定
+        //平滑退出
         \Swoole\Process::signal(SIGUSR1, function($signo) {
             
         });
 
-        //平滑退出
+        //待定
         \Swoole\Process::signal(SIGUSR2, function($signo) {
             
         });
@@ -180,6 +181,8 @@ class Process {
             try {
                 while ($ret = \Swoole\Process::wait(false)) { //$ret = array('code' => 0, 'pid' => 15001, 'signal' => 15);
                     echo "PID={$ret['pid']}\n";
+                    $pid = $ret['pid'];
+                    unset($this->__workers[$pid]);
                 }
             } catch (\Exception $ex) {
                 
@@ -194,7 +197,7 @@ class Process {
      */
     protected function _killMaster() {
         $this->__status = self::STATUS_STOP;
-        $this->_logger->log('master process receive the signal(SIGTEM|SIGKILL), then will be kill all workers', Logger::LEVEL_INFO, $this->__process_log_file);
+        $this->_logger->log('master process receive signal(SIGTEM|SIGKILL), then will be kill all workers', Logger::LEVEL_INFO, $this->__process_log_file);
         $this->_killWorkers();
         $this->_exit();
     }

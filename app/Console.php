@@ -91,18 +91,28 @@ HELP;
     }
 
     /**
-     * 停止进程
+     * 停止进程, 平滑退出
      */
     public function stop() {
-        
+        try {
+            $master_process = new Process();
+            $pid            = $master_process->getMasterInfo('pid');
+            \Swoole\Process::kill($pid, SIGUSR1);
+            return true;
+        } catch (\Exception $ex) {
+            catchError($this->_logger, $ex);
+            echo 'stop error';
+        }
+        return false;
     }
 
     /**
      * 重启进程
      */
     public function restart() {
-        $this->stop();
-        $this->start();
+        if ($this->stop()) {
+            $this->start();
+        }
     }
 
 }

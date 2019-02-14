@@ -17,7 +17,7 @@ class Topic {
     public function __construct(array $topic_info) {
         $this->_topic_name  = $topic_info['name'];
         $this->_min_workers = $topic_info['min_workers'] ?? 1;
-        $this->_min_workers = $topic_info['max_workers'] ?? 1;
+        $this->_max_workers = $topic_info['max_workers'] ?? 1;
     }
 
     /**

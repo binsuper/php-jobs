@@ -72,7 +72,7 @@ class Logger implements ILogger {
      * @param int|float $time
      */
     protected function _formatLog(string $msg, string $level, $time) {
-        return sprintf("%s%s [%s] [PID:%d]\n%s\n", date('Y/m/d H:i:s', $time), strstr($time, '.'), $level, getmypid(), $msg);
+        return sprintf("[%s%s] [%s] [PID:%d]\n%s\n", date('Y/m/d H:i:s', $time), strstr($time, '.'), $level, getmypid(), $msg);
     }
 
     /**

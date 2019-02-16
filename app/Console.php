@@ -24,7 +24,8 @@ class Console {
         //初始化配置
         Config::setConfig($config);
         //初始化日志实例
-        Logger::regist(Config::getConfig('log', 'log_dir'), Config::getConfig('log', 'log_file', ''));
+        Logger::regist(Config::getConfig('log', 'log_dir'), Config::getConfig('log', 'log_file', 'application.log'));
+        Logger::regist(Config::getConfig('log', 'log_dir'), Config::getConfig('process', 'process_log_file', 'process.log'), 'PROCESS');
 
         //初始化对象
         $this->_logger = Logger::getLogger();
@@ -43,6 +44,8 @@ class Console {
         switch ($act) {
             case 'help': //打印帮助信息
                 $this->printHelpMessage();
+                $this->_logger->log('test');
+                $this->_logger->flush();
                 break;
             case 'start': //开始运行
                 $this->start();
@@ -97,8 +100,10 @@ HELP;
         try {
             $master_process = new Process();
             $pid            = $master_process->getMasterInfo('pid');
-            \Swoole\Process::kill($pid, SIGUSR1);
-            return true;
+            if ($pid) {
+                \Swoole\Process::kill($pid, SIGUSR1);
+                return true;
+            }
         } catch (\Exception $ex) {
             catchError($this->_logger, $ex);
             echo 'stop error';

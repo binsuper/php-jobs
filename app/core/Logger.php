@@ -25,6 +25,7 @@ class Logger implements ILogger {
     protected $_log_buf_size   = 0; //缓冲区日志数量
     public $logfile_max_size   = 100; //日志文件大小限制,单位(mb)
     public $logfile_max_count  = 5; //日志文件数量限制
+    private $__sw_locks        = []; //文件锁
 
     public function __construct(string $log_dir, string $log_file = '') {
         if (empty($log_dir)) {
@@ -37,9 +38,11 @@ class Logger implements ILogger {
         mkdirs($this->__log_dir);
     }
 
-    public function __destruct() {
-        $this->flush();
-    }
+    /*
+      public function __destruct() {
+      $this->flush();
+      }
+     */
 
     /**
      * 获取实例
@@ -72,7 +75,7 @@ class Logger implements ILogger {
      * @param int|float $time
      */
     protected function _formatLog(string $msg, string $level, $time) {
-        return sprintf("[%s%s] [%s] [PID:%d]\n%s\n", date('Y/m/d H:i:s', $time), strstr($time, '.'), $level, getmypid(), $msg);
+        return sprintf("[%s%s] [%s] [PID:%d] %s\n", date('Y/m/d H:i:s', $time), strstr($time, '.'), $level, getmypid(), $msg);
     }
 
     /**
@@ -118,11 +121,13 @@ class Logger implements ILogger {
      * 将日志输出到文件
      */
     protected function _dumpFile() {
-        try {
-            if (empty($this->_log_buf)) {
-                return;
-            }
-            foreach ($this->_log_buf as $cat => $msg_list) {
+        if (empty($this->_log_buf)) {
+            return;
+        }
+        $log_buf   = $this->_log_buf;
+        $last_lock = null;
+        foreach ($log_buf as $cat => $msg_list) {
+            try {
                 if ($cat === $this->__log_category) {
                     $log_dir  = $this->__log_dir;
                     $log_file = strtr($this->__log_file, ['.log' => '']);
@@ -136,19 +141,34 @@ class Logger implements ILogger {
                 $filename = $log_dir . DIRECTORY_SEPARATOR . $log_file;
                 $content  = implode('', $msg_list);
 
+                //文件加锁
+                if (!isset($this->__sw_locks[$filename])) {
+                    $this->__sw_locks[$filename] = new \Swoole\Lock(SWOOLE_FILELOCK, $filename);
+                }
+                $last_lock = $this->__sw_locks[$filename];
+                if (!$this->__sw_locks[$filename]->trylock()) {
+                    continue;
+                }
                 //文件大小超出限制，则切割日志文件
+                clearstatcache(true, $filename);
                 if (@filesize($filename) >= ($this->logfile_max_size * 1024 * 1024)) {
                     $this->_rotateFiles($filename);
                 }
-
+                //解锁
+                $this->__sw_locks[$filename]->unlock();
                 //输出日志文件
                 error_log($content, 3, $filename);
+            } catch (\Exception $e) {
+                $this->log('something bad happened when dumping the log files' . PHP_EOL . $e->getTraceAsString(), self::LEVEL_ERROR, 'error');
+            } catch (\Throwable $e) {
+                $this->log('something bad happened when dumping the log files' . PHP_EOL . $e->getTraceAsString(), self::LEVEL_ERROR, 'error');
+            } finally {
+                if ($last_lock) {
+                    $last_lock->unlock();
+                }
             }
-        } catch (\Exception $e) {
-            echo 'something bad happened when dumping the log files' . PHP_EOL . $e->getTraceAsString() . PHP_EOL;
-        } catch (\Throwable $e) {
-            echo 'something bad happened when dumping the log files' . PHP_EOL . $e->getTraceAsString() . PHP_EOL;
         }
+        unset($log_buf);
     }
 
     /**

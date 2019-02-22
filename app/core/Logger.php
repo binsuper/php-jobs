@@ -15,7 +15,7 @@ class Logger implements ILogger {
     const LEVEL_ERROR      = 'error';
     const LEVEL_WARNING    = 'warning';
     const LEVEL_NOTICE     = 'notice';
-    const MAX_LOG_BUF_SIZE = 1000; //缓冲区最大数量
+    const MAX_LOG_BUF_SIZE = 100; //缓冲区最大数量
 
     private static $__instalce = [];
     private $__log_dir         = ''; //日志目录

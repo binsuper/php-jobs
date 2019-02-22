@@ -3,12 +3,13 @@
 namespace Gino\Jobs\Core\Queue;
 
 use \Gino\Jobs\Core\IFace\IQueueMessage;
+use \Gino\Jobs\Core\IFace\IQueueDriver;
 
 /**
  * 
  * @author GinoHuang <binsuper@126.com>
  */
-class RedisQueue implements \Gino\Jobs\Core\IFace\IQueueDriver {
+class RedisQueue implements IQueueDriver {
 
     private $__host;
     private $__port;
@@ -17,14 +18,32 @@ class RedisQueue implements \Gino\Jobs\Core\IFace\IQueueDriver {
     private $__handler;
     private $__queue_name;
 
-    public function __construct(array $config, string $queue_name) {
-        $this->__queue_name = $queue_name;
+    /**
+     * 获取连接
+     * @param array $config
+     * @param string $topic_name
+     * @return IQueueDriver 失败返回false
+     */
+    public static function getConnection(array $config, string $topic_name) {
+        return new self($config, $topic_name);
+    }
+
+    public function __construct(array $config, string $topic_name) {
+        $this->__queue_name = $topic_name;
         $this->__host       = $config['host'] ?? '127.0.0.1';
         $this->__port       = $config['port'] ?? 6379;
         $this->__db         = $config['database'] ?? 0;
         $this->__auth       = $config['password'] ?? '';
-        $this->__handler    = new Redis();
+        $this->__handler    = new \Redis();
         $this->__connect();
+    }
+
+    public function __destruct() {
+        try {
+            $this->close();
+        } catch (\Exception $ex) {
+            
+        }
     }
 
     /**
@@ -36,7 +55,7 @@ class RedisQueue implements \Gino\Jobs\Core\IFace\IQueueDriver {
             if (empty($this->__host) || empty($this->__port)) {
                 throw new \RedisException('redis host or port is empty');
             }
-            $this->__handler->connect($this->__host, $this->__port, 3);
+            $this->__handler->pconnect($this->__host, $this->__port, 3);
             if (!empty($this->__auth)) {
                 $this->__handler->auth($this->__auth);
             }
@@ -59,9 +78,7 @@ class RedisQueue implements \Gino\Jobs\Core\IFace\IQueueDriver {
      * 重连
      */
     public function reconnect() {
-        if (!$this->isConnected()) {
-            $this->__connect();
-        }
+        $this->__connect();
     }
 
     /**
@@ -69,15 +86,81 @@ class RedisQueue implements \Gino\Jobs\Core\IFace\IQueueDriver {
      * @return int
      */
     public function size(): int {
-        return $this->__handler->lLen();
+        $len = $this->__command(function() {
+            return $this->__handler->lLen($this->__queue_name);
+        });
+        return $len ?: 0;
     }
 
+    /**
+     * 执行命令
+     * @param callable $callback
+     * @return mixed
+     */
+    private function __command($callback) {
+        try {
+            return call_user_func($callback);
+        } catch (\RedisException $ex) {
+            $try_times = 0; //尝试3次重连执行
+            $last_ex   = null;
+            do {
+                //失败后重连
+                if ($try_times == 1) {
+                    sleep(1);
+                } else if ($try_times == 2) {
+                    sleep(5);
+                }
+                //尝试重连
+                try {
+                    if ($this->reconnect()) {
+                        return call_user_func($callback);
+                    }
+                } catch (\RedisException $ex) {
+                    $last_ex = $ex;
+                }
+                $try_times++;
+            } while ($try_times <= 3);
+            return $last_ex;
+        }
+    }
+
+    /**
+     * 从队列中弹出一条消息
+     * @return IQueueMessage 没有数据时返回NULL
+     */
     public function pop() {
-        $data = $this->__handler->rPop();
-        if ($data === NULL) {
+
+        $ret = $this->__command(function() {
+            return $this->__handler->brPop($this->__queue_name, 1);
+        });
+        if (empty($ret)) {
             return NULL;
         }
-        $msg = new RedisMessage($this, $data);
+        $data = $ret[1];
+        $msg  = new RedisMessage($this, $data);
+        return $msg;
+    }
+
+    /**
+     * 将消息重新加入到队列中
+     * @param IQueueMessage $msg
+     * @return bool
+     */
+    public function repush(IQueueMessage $msg): bool {
+        $ret = $this->__command(function() {
+            return $this->__handler->lPush($this->__queue_name, $msg->getBody());
+        });
+        if ($ret) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 关闭
+     */
+    public function close() {
+        $this->__handler->close();
     }
 
 }

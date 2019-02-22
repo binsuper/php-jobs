@@ -56,6 +56,9 @@ class Console {
             case 'restart': //重启
                 $this->restart();
                 break;
+            case 'zombie': //杀死僵尸进程
+                $this->killZombie();
+                break;
         }
     }
 
@@ -75,6 +78,7 @@ class Console {
 {#g}  start         {##}start the program
 {#g}  stop          {##}stop the program
 {#g}  restart       {##}restart the program
+{#g}  zombie        {##}kill the zombie process
 
 HELP;
         $rep = [
@@ -116,8 +120,44 @@ HELP;
      */
     public function restart() {
         if ($this->stop()) {
+            sleep(3);
             $this->start();
         }
+    }
+
+    /**
+     * 检查配置
+     * @throws \Exception
+     */
+    public function checkConfig() {
+        //topic
+        $topics_config = Config::getConfig('topics');
+        if (empty($topics_config)) {
+            throw new \Exception('topics is empty');
+        }
+        foreach ($topics_config as $topic_info) {
+            if (empty($topic_info['name'])) {
+                throw new \Exception('topic\'s name must be a non-empty string');
+            }
+            if (empty($topic_info['action'])) {
+                throw new \Exception('topic\'s action must be a class name');
+            }
+        }
+
+        //queue
+        $config = Config::getConfig('queue');
+        $class  = $config['class'];
+        if (!class_implements($class)[Core\IFace\IQueueDriver::class]) {
+            throw new \Exception("queue driver($class) must implements class(" . Core\IFace\IQueueDriver::class . ')');
+        }
+    }
+
+    /**
+     * 杀死僵尸进程
+     */
+    public function killZombie() {
+        $master_process = new Process();
+        $master_process->waitWorkers();
     }
 
 }

@@ -44,6 +44,12 @@ class Process {
     private $__dynamic_idle_time = 0;
 
     /**
+     * 健康的队列长度, 超出后将启动动态进程
+     * @var int
+     */
+    private $__queue_health_size = 0;
+
+    /**
      * 日志操作对象
      * @var Logger
      */
@@ -70,6 +76,7 @@ class Process {
         $this->__max_exeucte_time  = $config['max_execute_time'] ?? 0;
         $this->__max_exeucte_jobs  = $config['max_execute_jobs'] ?? 0;
         $this->__dynamic_idle_time = $config['dynamic_idle_time'] ?? 0;
+        $this->__queue_health_size = $config['queue_health_size'] ?? 0;
 
         Utils::mkdir($this->__pid_dir);
     }
@@ -202,7 +209,7 @@ class Process {
                     $errno  = swoole_errno();
                     $errmsg = swoole_strerror($errno);
                     $this->_logger->log("worker start failed, it will exited later; \nERRNO: {$errno}\nERRMSG: {$errmsg}", Logger::LEVEL_ERROR, 'error');
-                    $this->_waitWorkers();
+                    $this->waitWorkers();
                 } else {
                     $this->_logger->log("worker start, PID={$pid}, TYPE=" . Worker::TYPE_STATIC, Logger::LEVEL_INFO, $this->__process_log_file, true);
                 }
@@ -223,7 +230,13 @@ class Process {
         $worker->action(function(Worker $worker) use($topic) {
             $this->_checkMpid($worker);
             $this->__setProcessName('worker' . $this->_processName);
-            $job = $topic->newJob();
+            try {
+                $job = $topic->newJob();
+            } catch (\RedisException $ex) {
+                Utils::catchError($this->_logger, $ex);
+                $this->waitWorkers();
+            }
+
             do {
                 //每100毫秒检测一次主进程的运行状态
                 if (microtime(true) - ($this->__status_updatetime ?? 0) > 0.01) {
@@ -233,7 +246,6 @@ class Process {
                 //执行任务
                 try {
                     $job->run();
-
                     //结束条件
                     $where = true;
                     if (self::STATUS_RUNNING !== $this->__status) {
@@ -257,9 +269,10 @@ class Process {
                         sleep(1);
                     }
                 } catch (\Exception $ex) {
-                    
+                    Utils::catchError($this->_logger, $ex);
                 }
             } while ($where);
+            $this->_logger->flush();
             unset($job);
             unset($this->__status_updatetime);
         });
@@ -293,7 +306,7 @@ class Process {
 
         //平滑退出
         \Swoole\Process::signal(SIGUSR1, function($signo) {
-            $this->_waitWorkers();
+            $this->waitWorkers();
         });
 
         //动态进程管理
@@ -323,7 +336,7 @@ class Process {
                             $errno  = swoole_errno();
                             $errmsg = swoole_strerror($errno);
                             $this->_logger->log("worker process restart failed, it will exited later; \nERRNO: {$errno}\nERRMSG: {$errmsg}", Logger::LEVEL_ERROR, 'error', true);
-                            $this->_waitWorkers();
+                            $this->waitWorkers();
                             continue;
                         }
                         $this->_logger->log("worker restart, SIGNAL={$signo}, PID={$new_pid}, TYPE={$worker->getType()}", Logger::LEVEL_INFO, $this->__process_log_file, true);
@@ -405,7 +418,7 @@ class Process {
     /**
      * 通知并等待所有子进程退出
      */
-    protected function _waitWorkers() {
+    public function waitWorkers() {
         $this->__status = self::STATUS_WAIT;
         $data           = $this->getMasterInfo();
         $data['status'] = $this->__status;

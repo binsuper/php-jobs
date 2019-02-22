@@ -9,6 +9,27 @@ namespace Gino\Jobs\Core\IFace;
 interface IQueueDriver {
 
     /**
+     * 获取连接
+     * @param array $config
+     * @param string $topic_name
+     * @return IQueueDriver 失败返回false
+     */
+    public static function getConnection(array $config, string $topic_name);
+
+    /**
+     * 构造函数
+     * @param array $config
+     * @param string $topic_name
+     */
+    public function __construct(array $config, string $topic_name);
+
+    /**
+     * 队列是否连接
+     * @return bool
+     */
+    public function isConntected(): bool;
+
+    /**
      * 获取当前队列的长度
      * @return int
      */
@@ -21,13 +42,12 @@ interface IQueueDriver {
     public function pop();
 
     /**
-     * 队列是否连接
-     * @return bool
-     */
-    public function isConntected(): bool;
-
-    /**
      * 重连
      */
     public function reconnect();
+
+    /**
+     * 关闭
+     */
+    public function close();
 }

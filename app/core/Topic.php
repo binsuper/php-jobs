@@ -2,6 +2,8 @@
 
 namespace Gino\Jobs\Core;
 
+use Gino\Jobs\Core\Queue\Queue;
+
 /**
  * 任务管理中心
  *
@@ -12,16 +14,26 @@ class Topic {
     private $__topic_name;          //主题名称
     private $__min_workers = 1;     //最少进程数
     private $__max_workers = 1;     //最大进程数
+    private $__action;              //任务类
     private $__workers     = [];    //子进程数组
 
     public function __construct(array $topic_info) {
-        $this->__topic_name  = $topic_info['name'];
         $this->__min_workers = $topic_info['min_workers'] ?? 1;
         $this->__max_workers = $topic_info['max_workers'] ?? 1;
+        $this->__topic_name  = $topic_info['name'];
+        $this->__action      = $topic_info['action'];
     }
 
     /**
-     * 执行
+     * 获取名称
+     * @return string
+     */
+    public function getName() {
+        return $this->__topic_name;
+    }
+
+    /**
+     * 管理静态进程
      * 
      * @param function $callback
      */
@@ -33,10 +45,14 @@ class Topic {
     }
 
     /**
-     * 动态执行
+     * 管理动态进程
+     * 
+     * @param callable $callback
      */
     public function execDynamic($callback) {
-        if (!$this->isDynamicEnable()) {
+        $health_size = Config::getConfig('process', 'queue_health_size');
+        $queue       = Queue::getQueue($this);
+        if ($health_size == 0 || $health_size > $queue->size()) {
             return;
         }
         //创建最小数量的进程
@@ -66,14 +82,9 @@ class Topic {
      * @return Jobs
      */
     public function newJob() {
-        return new Jobs($this->__topic_name);
-    }
-
-    /**
-     * 是否开启动态控制
-     */
-    public function isDynamicEnable() {
-        return true;
+        $queue = Queue::getQueue($this);
+        $job   = new $this->__action();
+        return new Jobs($queue, $job);
     }
 
 }

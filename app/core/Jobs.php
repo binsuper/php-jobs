@@ -2,6 +2,9 @@
 
 namespace Gino\Jobs\Core;
 
+use Gino\Jobs\Core\IFace\IQueueDriver;
+use Gino\Jobs\Core\IFace\IJob;
+
 /**
  *
  * @author GinoHuang <binsuper@126.com>
@@ -24,14 +27,20 @@ class Jobs {
 
     /**
      *
-     * @var IFace\IEvent
+     * @var IJob
      */
-    private $__event;
+    private $__job;
 
-    public function __construct(string $name) {
-        $this->__name           = $name;
+    /**
+     * 
+     * @var IQueueDriver 
+     */
+    private $__queue;
+
+    public function __construct(IQueueDriver $queue, IJob $job) {
+        $this->__queue          = $queue;
+        $this->__job            = $job;
         $this->__last_busy_time = microtime(true);
-        $this->__event          = new \Gino\Jobs\Jobs\Test();
     }
 
     /**
@@ -53,7 +62,11 @@ class Jobs {
      * 执行
      */
     public function run() {
-        if ($this->__event->exec()) {
+        $msg = $this->__queue->pop();
+        if (null === $msg) {
+            return;
+        }
+        if ($this->__job->onReceive($msg)) {
             $this->__done_count++;
             $this->__last_busy_time = microtime(true);
         }

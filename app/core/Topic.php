@@ -36,8 +36,11 @@ class Topic {
      * 动态执行
      */
     public function execDynamic($callback) {
+        if (!$this->isDynamicEnable()) {
+            return;
+        }
         //创建最小数量的进程
-        for ($i = $this->__min_workers; $i < $this->__max_workers; $i++) {
+        for ($i = count($this->__workers); $i < $this->__max_workers; $i++) {
             call_user_func($callback);
         }
     }
@@ -47,9 +50,7 @@ class Topic {
      * @param \Gino\Jobs\Core\Worker $worker
      */
     public function mountWorker(Worker $worker) {
-        if (!in_array($worker, $this->__workers)) {
-            $this->__workers[] = $worker;
-        }
+        $this->__workers[$worker->getPID()] = $worker;
     }
 
     /**
@@ -57,16 +58,22 @@ class Topic {
      * @param \Gino\Jobs\Core\Worker $worker
      */
     public function freeWorker(Worker $worker) {
-        if (($key = array_search($worker, $this->__workers))) {
-            unset($key);
-        }
+        unset($this->__workers[$worker->getPID()]);
     }
 
     /**
      * 生成新任务
+     * @return Jobs
      */
     public function newJob() {
-        
+        return new Jobs($this->__topic_name);
+    }
+
+    /**
+     * 是否开启动态控制
+     */
+    public function isDynamicEnable() {
+        return true;
     }
 
 }

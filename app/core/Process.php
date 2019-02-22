@@ -36,8 +36,24 @@ class Process {
      * @var int 
      */
     private $__max_exeucte_jobs = 0;
+
+    /**
+     * 动态进程最长闲置时间(秒), 0为不限制
+     * @var int 
+     */
+    private $__dynamic_idle_time = 0;
+
+    /**
+     * 日志操作对象
+     * @var Logger
+     */
     protected $_logger;
-    protected $_processName; //进程名称
+
+    /**
+     * 进程名称
+     * @var string
+     */
+    protected $_processName;
 
     public function __construct() {
         $config = Config::getConfig('process');
@@ -45,16 +61,17 @@ class Process {
             die('config process.data_dir must be set' . PHP_EOL);
         }
 
-        $this->_logger            = Logger::getLogger();
-        $this->__pid_dir          = $config['data_dir'];
-        $this->__pid_file         = $this->__pid_dir . DIRECTORY_SEPARATOR . $this->__pid_file;
-        $this->__pid_info_file    = $this->__pid_dir . DIRECTORY_SEPARATOR . $this->__pid_info_file;
-        $this->__process_log_file = strtr($config['process_log_file'] ?? 'process.log', ['.log' => '']);
-        $this->_processName       = $config['process_name'] ?? ' :php-jobs';
-        $this->__max_exeucte_time = $config['child_execute_time'] ?? 0;
-        $this->__max_exeucte_jobs = $config['child_execute_jobs'] ?? 0;
+        $this->_logger             = Logger::getLogger();
+        $this->__pid_dir           = $config['data_dir'];
+        $this->__pid_file          = $this->__pid_dir . DIRECTORY_SEPARATOR . $this->__pid_file;
+        $this->__pid_info_file     = $this->__pid_dir . DIRECTORY_SEPARATOR . $this->__pid_info_file;
+        $this->__process_log_file  = strtr($config['process_log_file'] ?? 'process.log', ['.log' => '']);
+        $this->_processName        = $config['process_name'] ?? ' :php-jobs';
+        $this->__max_exeucte_time  = $config['max_execute_time'] ?? 0;
+        $this->__max_exeucte_jobs  = $config['max_execute_jobs'] ?? 0;
+        $this->__dynamic_idle_time = $config['dynamic_idle_time'] ?? 0;
 
-        mkdirs($this->__pid_dir);
+        Utils::mkdir($this->__pid_dir);
     }
 
     /**
@@ -206,8 +223,7 @@ class Process {
         $worker->action(function(Worker $worker) use($topic) {
             $this->_checkMpid($worker);
             $this->__setProcessName('worker' . $this->_processName);
-            $job          = $topic->newJob();
-            $execute_jobs = 0; //已经执行的任务数量
+            $job = $topic->newJob();
             do {
                 //每100毫秒检测一次主进程的运行状态
                 if (microtime(true) - ($this->__status_updatetime ?? 0) > 0.01) {
@@ -215,22 +231,36 @@ class Process {
                     $this->__status_updatetime = microtime(true);
                 }
                 //执行任务
+                try {
+                    $job->run();
 
-                $execute_jobs++; //执行任务数+1
-                //$this->_logger->log('job: ' . $execute_jobs);
-                sleep(1);
+                    //结束条件
+                    $where = true;
+                    if (self::STATUS_RUNNING !== $this->__status) {
+                        $where = false;
+                    }
+                    //执行任务数限制
+                    else if ($this->__max_exeucte_jobs > 0 && $job->doneCount() >= $this->__max_exeucte_jobs) {
+                        $where = false;
+                    }
+                    //执行时间限制
+                    else if ($this->__max_exeucte_time > 0 && $worker->getDuration() >= $this->__max_exeucte_time) {
+                        $where = false;
+                    }
+                    //动态进程闲置时间限制
+                    else if ($this->__dynamic_idle_time > 0 && $worker->getType() == Worker::TYPE_DYNAMIC && $job->idleTime() >= $this->__dynamic_idle_time) {
+                        $where = false;
+                    }
 
-                //当长时间处于空闲状态，则让进程进入休眠
-                //结束条件
-                $where = true;
-                if (self::STATUS_RUNNING !== $this->__status) {
-                    $where = false;
-                } else if ($this->__max_exeucte_jobs > 0 && $execute_jobs >= $this->__max_exeucte_jobs) { //执行任务数限制
-                    $where = false;
-                } else if ($this->__max_exeucte_time > 0 && $worker->getDuration() >= $this->__max_exeucte_time) { //执行时间限制
-                    $where = false;
+                    //当长时间处于空闲状态，则让进程进入半休眠
+                    if ($where && $job->idleTime() <= $this->__max_exeucte_time && $job->idleTime() > 5) {
+                        sleep(1);
+                    }
+                } catch (\Exception $ex) {
+                    
                 }
             } while ($where);
+            unset($job);
             unset($this->__status_updatetime);
         });
         try {
@@ -239,9 +269,9 @@ class Process {
                 $this->__workers[$pid] = $worker;
             }
         } catch (\Exception $ex) {
-            catchError($this->_logger, $ex);
+            Utils::catchError($this->_logger, $ex);
         } catch (\Throwable $ex) {
-            catchError($this->_logger, $ex);
+            Utils::catchError($this->_logger, $ex);
         }
         return $pid;
     }
@@ -266,20 +296,11 @@ class Process {
             $this->_waitWorkers();
         });
 
-        //待定
+        //动态进程管理
         \Swoole\Process::signal(SIGUSR2, function($signo) {
-            foreach ($this->__topics as $topic) {
-                $topic->execDynamic(function() use($topic) {
-                    if (self::STATUS_RUNNING !== $this->__status) {
-                        return;
-                    }
-                    $pid = $this->_forkWorker($topic, Worker::TYPE_DYNAMIC);
-                    if ($pid) {
-                        $this->_logger->log("worker start, PID={$pid}, TYPE=" . Worker::TYPE_DYNAMIC, Logger::LEVEL_INFO, $this->__process_log_file, true);
-                    }
-                });
-            }
+            $this->__checkDynamic();
         });
+
         //子进程关闭信号
         \Swoole\Process::signal(SIGCHLD, function($signo) {
             try {
@@ -322,9 +343,9 @@ class Process {
                     }
                 }
             } catch (\Exception $ex) {
-                catchError($this->_logger, $ex);
+                Utils::catchError($this->_logger, $ex);
             } catch (\Throwable $ex) {
-                catchError($this->_logger, $ex);
+                Utils::catchError($this->_logger, $ex);
             }
         });
     }
@@ -333,44 +354,28 @@ class Process {
      * 注册定时器
      */
     protected function _registTimer() {
-
-        //swoolev4.2.10 开始不支持在协程中fork子进程
-        //所以此处新建一个子进程对topic进行管理
-        $topic_worker = new \Swoole\Process(function($worker) {
-            $this->__setProcessName('manger' . $this->_processName);
-            do {
-                //每100毫秒检测一次主进程的运行状态
-                if (microtime(true) - ($this->__status_updatetime ?? 0) > 0.01) {
-                    $this->__status            = $this->getMasterInfo('status');
-                    $this->__status_updatetime = microtime(true);
-                }
-            } while (self::STATUS_WAIT !== $this->__status);
-            unset($this->__status_updatetime);
-        });
-        try {
-            $topic_worker->start();
-        } catch (\Exception $ex) {
-            catchError($this->_logger, $ex);
-        } catch (\Throwable $ex) {
-            catchError($this->_logger, $ex);
-        }
-
         //检测topic
-        /*
-          \Swoole\Timer::after(5000, function() {
-          foreach ($this->__topics as $topic) {
-          $topic->execDynamic(function() use($topic) {
-          if (self::STATUS_RUNNING !== $this->__status) {
-          return;
-          }
-          $pid = $this->_forkWorker($topic, Worker::TYPE_DYNAMIC);
-          if ($pid) {
-          $this->_logger->log("worker start, PID={$pid}, TYPE=" . Worker::TYPE_DYNAMIC, Logger::LEVEL_INFO, $this->__process_log_file, true);
-          }
-          });
-          }
-          });
-         */
+        //4.2.10版本开始，不允许在协程中fork进程，所以使用信号处理
+        \Swoole\Timer::tick(5000, function() {
+            \Swoole\Process::kill($this->__pid, SIGUSR2);
+        });
+    }
+
+    /**
+     * 动态进程管理
+     */
+    private function __checkDynamic() {
+        foreach ($this->__topics as $topic) {
+            $topic->execDynamic(function() use($topic) {
+                if (self::STATUS_RUNNING !== $this->__status) {
+                    return;
+                }
+                $pid = $this->_forkWorker($topic, Worker::TYPE_DYNAMIC);
+                if ($pid) {
+                    $this->_logger->log("worker start, PID={$pid}, TYPE=" . Worker::TYPE_DYNAMIC, Logger::LEVEL_INFO, $this->__process_log_file, true);
+                }
+            });
+        }
     }
 
     /**

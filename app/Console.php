@@ -105,7 +105,7 @@ HELP;
                 return true;
             }
         } catch (\Exception $ex) {
-            catchError($this->_logger, $ex);
+            Core\Utils::catchError($this->_logger, $ex);
             echo 'stop error';
         }
         return false;

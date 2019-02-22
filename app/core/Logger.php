@@ -35,7 +35,7 @@ class Logger implements ILogger {
         if (empty($log_file)) {
             $this->__log_file = $log_file;
         }
-        mkdirs($this->__log_dir);
+        Utils::mkdir($this->__log_dir);
     }
 
     /*
@@ -134,7 +134,7 @@ class Logger implements ILogger {
                 } else {
                     $log_dir  = $this->__log_dir . DIRECTORY_SEPARATOR . $cat;
                     $log_file = $cat;
-                    mkdirs($log_dir);
+                    Utils::mkdir($log_dir);
                 }
                 $log_file .= '-' . date('Ymd') . '.log';
 

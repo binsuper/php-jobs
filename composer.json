@@ -18,8 +18,5 @@
             "Gino\\Jobs\\Core\\": "app/core",
             "Gino\\Jobs\\Jobs\\": "app/jobs"
         }
-    },
-    "bin": [
-        "console"
-    ]
+    }
 }

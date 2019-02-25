@@ -15,7 +15,7 @@ class Utils {
      * @return bool
      */
     public static function mkdir(string $dir): bool {
-        return is_dir($dir) || (mkdirs(dirname($dir)) && @mkdir($dir, 0755));
+        return is_dir($dir) || (static::mkdir(dirname($dir)) && @mkdir($dir, 0755));
     }
 
     /**

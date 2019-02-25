@@ -6,9 +6,9 @@ if (!defined('GINO_JOBS_CONFIG_PATH')) {
     define('GINO_JOBS_CONFIG_PATH', GINO_JOBS_ROOT_PATH . '/conf/config.php');
 }
 
-
-require_once GINO_JOBS_ROOT_PATH . '/vendor/autoload.php';
-require_once GINO_JOBS_ROOT_PATH . '/app/function.php';
+if (!class_exists('Composer\Autoload\ClassLoader')) {
+    require_once GINO_JOBS_ROOT_PATH . '/vendor/autoload.php';
+}
 
 $config = include(GINO_JOBS_CONFIG_PATH);
 

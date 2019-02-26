@@ -24,16 +24,16 @@ class RedisQueue implements IQueueDriver {
      * @param string $topic_name
      * @return IQueueDriver 失败返回false
      */
-    public static function getConnection(array $config, string $topic_name) {
+    public static function getConnection(array $config, string $topic_name, array $topic_config = []) {
         return new self($config, $topic_name);
     }
 
-    public function __construct(array $config, string $topic_name) {
-        $this->__queue_name = $topic_name;
+    private function __construct(array $config, string $queue_name) {
+        $this->__queue_name = $queue_name;
         $this->__host       = $config['host'] ?? '127.0.0.1';
         $this->__port       = $config['port'] ?? 6379;
-        $this->__db         = $config['database'] ?? 0;
-        $this->__auth       = $config['password'] ?? '';
+        $this->__db         = $config['db'] ?? 0;
+        $this->__auth       = $config['pass'] ?? '';
         $this->__handler    = new \Redis();
         $this->__connect();
     }
@@ -147,7 +147,7 @@ class RedisQueue implements IQueueDriver {
      * @return bool
      */
     public function repush(IQueueMessage $msg): bool {
-        $ret = $this->__command(function() {
+        $ret = $this->__command(function() use($msg) {
             return $this->__handler->lPush($this->__queue_name, $msg->getBody());
         });
         if ($ret) {

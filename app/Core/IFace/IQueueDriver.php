@@ -14,14 +14,7 @@ interface IQueueDriver {
      * @param string $topic_name
      * @return IQueueDriver 失败返回false
      */
-    public static function getConnection(array $config, string $topic_name);
-
-    /**
-     * 构造函数
-     * @param array $config
-     * @param string $topic_name
-     */
-    public function __construct(array $config, string $topic_name);
+    public static function getConnection(array $config, string $topic_name, array $topic_config = []);
 
     /**
      * 队列是否连接
@@ -40,11 +33,6 @@ interface IQueueDriver {
      * @return IQueueMessage 没有数据时返回NULL
      */
     public function pop();
-
-    /**
-     * 重连
-     */
-    public function reconnect();
 
     /**
      * 关闭

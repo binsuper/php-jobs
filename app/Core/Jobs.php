@@ -66,7 +66,7 @@ class Jobs {
         if (null === $msg) {
             return;
         }
-        if ($this->__job->onReceive($msg)) {
+        if ($this->__job->consume($msg)) {
             $this->__done_count++;
             $this->__last_busy_time = microtime(true);
         }

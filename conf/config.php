@@ -14,15 +14,26 @@ return array(
         'max_execute_time'  => 1200, //子进程最长执行时间(秒, 0为不限制)，防止内存泄漏
         'max_execute_jobs'  => 1000, //子进程最多执行任务数量(0为不限制)，防止内存泄漏
         'dynamic_idle_time' => 600, //动态子进程闲置的最长时间(0为不限制)
-        'queue_health_size' => 10, //健康的队列长度, 超出后将启动动态进程
+        'queue_health_size' => 10, //健康的队列长度, 超出后将开启动态进程
     ],
-    //队列模块
+    //队列模块 - redis
     'queue'   => [
-        'host'     => '192.168.1.254',
-        'port'     => 6379,
-        'database' => 0,
-        'password' => '',
-        'class'    => '\\Gino\\Jobs\\Core\\Queue\\RedisQueue'
+        /*
+          //队列模块 - redis
+          'class' => '\Gino\Jobs\Core\Queue\RedisQueue',
+          'host'  => '192.168.1.254',
+          'port'  => 6379,
+          'pass'  => '',
+          'db'    => 0,
+         */
+        //队列模块 - rabiitmq
+        'class' => '\Gino\Jobs\Core\Queue\RabbitmqQueue',
+        'host'  => '192.168.122.128',
+        'port'  => 5672,
+        'user'  => 'admin',
+        'pass'  => '123456',
+        'vhost' => '/',
+        'qos'   => 1
     ],
     //任务模块
     'topics'  => [
@@ -30,7 +41,8 @@ return array(
             'min_workers' => 3, //最少的进程数
             'max_workers' => 5, //最大的进程数
             'name'        => 'test',
-            'action'      => '\\Gino\\Jobs\\Jobs\\Test',
+            'action'      => '\Gino\Jobs\Action\Test',
+            'exchange'    => 'phpjob'
         ]
     ]
 );

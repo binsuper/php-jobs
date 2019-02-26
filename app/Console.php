@@ -44,7 +44,6 @@ class Console {
         switch ($act) {
             case 'help': //打印帮助信息
                 $this->printHelpMessage();
-                $this->_logger->log('test');
                 $this->_logger->flush();
                 break;
             case 'start': //开始运行
@@ -58,6 +57,9 @@ class Console {
                 break;
             case 'zombie': //杀死僵尸进程
                 $this->killZombie();
+                break;
+            case 'check': //检查配置是否正确
+                $this->checkConfig();
                 break;
         }
     }
@@ -79,6 +81,7 @@ class Console {
 {#g}  stop          {##}stop the program
 {#g}  restart       {##}restart the program
 {#g}  zombie        {##}kill the zombie process
+{#g}  check         {##}check the configuration
 
 HELP;
         $rep = [
@@ -93,6 +96,7 @@ HELP;
      * 启动进程
      */
     public function start() {
+        $this->checkConfig();
         $master_process = new Process();
         $master_process->start();
     }
@@ -130,26 +134,41 @@ HELP;
      * @throws \Exception
      */
     public function checkConfig() {
-        //topic
-        $topics_config = Config::getConfig('topics');
-        if (empty($topics_config)) {
-            throw new \Exception('topics is empty');
-        }
-        foreach ($topics_config as $topic_info) {
-            if (empty($topic_info['name'])) {
-                throw new \Exception('topic\'s name must be a non-empty string');
+        try {
+            //topic
+            $topics_config = Config::getConfig('topics');
+            if (empty($topics_config)) {
+                throw new \Exception('config<topics> is empty');
             }
-            if (empty($topic_info['action'])) {
-                throw new \Exception('topic\'s action must be a class name');
+            foreach ($topics_config as $topic_info) {
+                if (empty($topic_info['name'])) {
+                    throw new \Exception('topic\'s name must be a non-empty string');
+                }
+                if (empty($topic_info['action'])) {
+                    throw new \Exception('topic\'s action must be a class name');
+                }
             }
+            //queue
+            $config = Config::getConfig('queue');
+            if (empty($config)) {
+                throw new \Exception('config<queue> is empty');
+            }
+            $class = $config['class'];
+            if (!class_implements($class)[Core\IFace\IQueueDriver::class]) {
+                throw new \Exception("queue driver($class) must implements class(" . Core\IFace\IQueueDriver::class . ')');
+            }
+        } catch (\Exception $ex) {
+            Core\Utils::catchError($this->_logger, $ex);
+            echo 'the configuration syntax is error;' . PHP_EOL;
+            echo 'error: ' . $ex->getMessage() . PHP_EOL;
+            exit();
+        } catch (\Throwable $ex) {
+            Core\Utils::catchError($this->_logger, $ex);
+            echo 'the configuration syntax is error;' . PHP_EOL;
+            echo 'error: ' . $ex->getMessage() . PHP_EOL;
+            exit();
         }
-
-        //queue
-        $config = Config::getConfig('queue');
-        $class  = $config['class'];
-        if (!class_implements($class)[Core\IFace\IQueueDriver::class]) {
-            throw new \Exception("queue driver($class) must implements class(" . Core\IFace\IQueueDriver::class . ')');
-        }
+        echo 'the configuration syntax is OK;' . PHP_EOL;
     }
 
     /**

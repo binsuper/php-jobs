@@ -14,9 +14,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Gino\\Jobs\\": "app",
-            "Gino\\Jobs\\Core\\": "app/core",
-            "Gino\\Jobs\\Jobs\\": "app/jobs"
+            "Gino\\Jobs\\": "app"
         }
     }
 }

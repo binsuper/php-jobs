@@ -1,6 +1,6 @@
 <?php
 
-namespace Gino\Jobs\Jobs;
+namespace Gino\Jobs\Action;
 
 use Gino\Jobs\Core\IFace\IQueueMessage;
 use Gino\Jobs\Core\IFace\IJob;
@@ -18,7 +18,7 @@ class Test implements IJob {
      * @param IQueueMessage $msg
      * @return bool 执行成功返回true, 执行失败返回false
      */
-    public function onReceive(IQueueMessage $msg): bool {
+    public function consume(IQueueMessage $msg): bool {
         Logger::getLogger()->log('job: ' . $msg->getBody());
         return true;
     }

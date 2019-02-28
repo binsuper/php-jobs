@@ -37,6 +37,11 @@ class Console {
      * @global array $argv
      */
     public function run() {
+      
+        if(!extension_loaded('swoole')){
+            die('I need swoole(php-extension)！！！');
+        }
+        
         global $argv;
         $command_args = array_slice($argv, 1);
         $act          = $command_args[0] ?? 'help';

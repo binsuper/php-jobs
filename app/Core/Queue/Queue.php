@@ -19,10 +19,12 @@ class Queue {
     /**
      * 获取队列
      * @param Topic $topic
+     * @param bool $is_consume 设置是否消费队列, 默认为true
      * @return IQueueDriver 失败返回false
      */
-    public static function getQueue(Topic $topic) {
+    public static function getQueue(Topic $topic, bool $is_consume = true) {
         $config       = Config::getConfig('queue');
+        $config['is_consumer'] = $is_consume;
         $topic_name   = $topic->getName();
         $topic_config = $topic->getConfig();
         $class        = $config['class'];

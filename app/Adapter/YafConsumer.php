@@ -2,20 +2,20 @@
 
 namespace Gino\Jobs\Adapter;
 
-use Gino\Jobs\Core\IFace\IJob;
+use Gino\Jobs\Core\IFace\IConsumer;
 use \Gino\Jobs\Core\IFace\IQueueMessage;
 
 /**
- * yaf脚本
+ * yaf框架 - 消费者
  * 
  * @author Gino Huang <binsuper@126.com>
  */
-abstract class YafJob implements IJob {
+abstract class YafConsumer implements IConsumer {
 
     public function consume(IQueueMessage $msg): bool {
         $result = false;
         \Yaf\Application::app()->bootstrap()->execute(function() use(&$result, $msg) {
-            $result = $this->onYafReceive($msg);
+            $result = $this->onConsume($msg);
         });
         return $result;
     }

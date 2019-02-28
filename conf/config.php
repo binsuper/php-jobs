@@ -26,9 +26,10 @@ return array(
           'pass'  => '',
           'db'    => 0,
          */
+
         //队列模块 - rabiitmq
         'class' => '\Gino\Jobs\Core\Queue\RabbitmqQueue',
-        'host'  => '192.168.122.128',
+        'host'  => '127.0.0.1',
         'port'  => 5672,
         'user'  => 'admin',
         'pass'  => '123456',
@@ -38,8 +39,8 @@ return array(
     //任务模块
     'topics'  => [
         [
-            'min_workers' => 3, //最少的进程数
-            'max_workers' => 5, //最大的进程数
+            'min_workers' => 2, //最少的进程数
+            'max_workers' => 4, //最大的进程数
             'name'        => 'test',
             'action'      => '\Gino\Jobs\Action\Test',
             'exchange'    => 'phpjob'

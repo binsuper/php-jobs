@@ -4,6 +4,7 @@ namespace Gino\Jobs\Core;
 
 use Gino\Jobs\Core\Logger;
 use Gino\Jobs\Core\Config;
+use Gino\Jobs\Core\Exception\ExitException;
 
 /**
  * 进程管理
@@ -268,6 +269,8 @@ class Process {
                     if ($where && $job->idleTime() <= $this->__max_exeucte_time && $job->idleTime() > 5) {
                         sleep(1);
                     }
+                } catch (ExitException $ex) {
+                    $where = false;
                 } catch (\Exception $ex) {
                     Utils::catchError($this->_logger, $ex);
                 }

@@ -5,10 +5,10 @@ namespace Gino\Jobs\Core\IFace;
 use Gino\Jobs\Core\IFace\IQueueMessage;
 
 /**
- *
+ * 消费者
  * @author GinoHuang <binsuper@126.com>
  */
-interface IJob {
+interface IConsumer {
 
     /**
      * 消费消息

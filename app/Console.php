@@ -76,11 +76,11 @@ class Console {
 {#y}Options:
 {##}
 {#y}Available commands:
-{#g}  help          {##}Displays help message
+{#g}  help          {##}displays help message
 {#g}  start         {##}start the program
 {#g}  stop          {##}stop the program
 {#g}  restart       {##}restart the program
-{#g}  zombie        {##}kill the zombie process
+{#g}  zombie        {##}try killing the zombie process
 {#g}  check         {##}check the configuration
 
 HELP;
@@ -104,13 +104,20 @@ HELP;
     /**
      * 停止进程, 平滑退出
      */
-    public function stop() {
+    public function stop($no_close = false) {
         try {
             $master_process = new Process();
             $pid            = $master_process->getMasterInfo('pid');
-            if ($pid) {
-                \Swoole\Process::kill($pid, SIGUSR1);
-                return true;
+            if ($no_close) {
+                if (!$pid) {
+                    return true;
+                }
+                return \Swoole\Process::kill($pid, 0) ? false : true;
+            } else {
+                if ($pid) {
+                    \Swoole\Process::kill($pid, SIGUSR1);
+                    return true;
+                }
             }
         } catch (\Exception $ex) {
             Core\Utils::catchError($this->_logger, $ex);
@@ -124,7 +131,9 @@ HELP;
      */
     public function restart() {
         if ($this->stop()) {
-            sleep(3);
+            while (!$this->stop(true)) {
+                sleep(1);
+            }
             $this->start();
         }
     }

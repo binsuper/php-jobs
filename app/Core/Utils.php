@@ -28,7 +28,7 @@ class Utils {
         $error .= 'Error Code：' . $ex->getCode() . PHP_EOL;
         $error .= 'Error Msg：' . $ex->getMessage() . PHP_EOL;
         $error .= 'Error Strace：' . $ex->getTraceAsString() . PHP_EOL;
-        $logger->log($error, \Gino\Jobs\Core\Logger::LEVEL_ERROR, 'error');
+        $logger->log($error, \Gino\Jobs\Core\Logger::LEVEL_ERROR, 'error', true);
     }
 
 }

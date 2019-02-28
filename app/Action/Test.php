@@ -3,14 +3,14 @@
 namespace Gino\Jobs\Action;
 
 use Gino\Jobs\Core\IFace\IQueueMessage;
-use Gino\Jobs\Core\IFace\IJob;
+use Gino\Jobs\Core\IFace\IConsumer;
 use Gino\Jobs\Core\Logger;
 
 /**
  *
  * @author GinoHuang <binsuper@126.com>
  */
-class Test implements IJob {
+class Test implements IConsumer {
 
     /**
      * 收到消息时执行
@@ -19,7 +19,9 @@ class Test implements IJob {
      * @return bool 执行成功返回true, 执行失败返回false
      */
     public function consume(IQueueMessage $msg): bool {
-        Logger::getLogger()->log('job: ' . $msg->getBody());
+        Logger::getLogger()->log('receive msg： ' . $msg->getBody());
+        sleep(1);
+        $msg->ack();
         return true;
     }
 

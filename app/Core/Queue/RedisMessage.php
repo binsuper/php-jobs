@@ -30,17 +30,18 @@ class RedisMessage extends BaseQueueMessage {
 
     /**
      * 正确应答
+     * @return boolean
      */
-    public function ack(): bool {
+    public function ack() {
         return true;
     }
 
     /**
      * 拒绝消息
-     * 
-     * @param bool $back true表示将消息重新入队列，false则丢弃该消息
+     * @param bool $requeue true表示将消息重新入队列，false则丢弃该消息
+     * @return boolean
      */
-    public function reject(bool $back): bool {
+    public function reject(bool $requeue) {
         if (!$back) {
             return true;
         }

@@ -4,6 +4,8 @@ namespace Gino\Jobs\Core\Queue;
 
 use \Gino\Jobs\Core\IFace\IQueueMessage;
 use \Gino\Jobs\Core\IFace\IQueueDriver;
+use \Gino\Jobs\Core\Utils;
+use \Gino\Jobs\Core\Logger;
 
 /**
  * 
@@ -53,7 +55,7 @@ class RedisQueue implements IQueueDriver {
     private function __connect() {
         try {
             if (empty($this->__host) || empty($this->__port)) {
-                throw new \RedisException('redis host or port is empty');
+                throw new \Exception('redis host or port is empty');
             }
             $this->__handler->pconnect($this->__host, $this->__port, 3);
             if (!empty($this->__auth)) {
@@ -101,6 +103,9 @@ class RedisQueue implements IQueueDriver {
         try {
             return call_user_func($callback);
         } catch (\RedisException $ex) {
+            if ($this->isConntected()) {
+                throw $ex;
+            }
             $try_times = 0; //尝试3次重连执行
             $last_ex   = null;
             do {
@@ -120,7 +125,9 @@ class RedisQueue implements IQueueDriver {
                 }
                 $try_times++;
             } while ($try_times <= 3);
-            return $last_ex;
+            if ($last_ex) {
+                throw $last_ex;
+            }
         }
     }
 
@@ -129,16 +136,20 @@ class RedisQueue implements IQueueDriver {
      * @return IQueueMessage 没有数据时返回NULL
      */
     public function pop() {
-
-        $ret = $this->__command(function() {
-            return $this->__handler->brPop($this->__queue_name, 1);
-        });
-        if (empty($ret)) {
-            return NULL;
+        try {
+            $ret = $this->__command(function() {
+                return $this->__handler->brPop($this->__queue_name, 1);
+            });
+            if (empty($ret)) {
+                return NULL;
+            }
+            $data = $ret[1];
+            $msg  = new RedisMessage($this, $data);
+            return $msg;
+        } catch (\Exception $ex) {
+            Utils::catchError(Logger::getLogger(), $ex);
+            return null;
         }
-        $data = $ret[1];
-        $msg  = new RedisMessage($this, $data);
-        return $msg;
     }
 
     /**

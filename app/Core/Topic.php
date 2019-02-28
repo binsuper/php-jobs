@@ -61,7 +61,7 @@ class Topic {
      */
     public function execDynamic($callback) {
         $health_size = Config::getConfig('process', 'queue_health_size');
-        $queue       = Queue::getQueue($this);
+        $queue       = Queue::getQueue($this, false); //非消费者队列
         if ($health_size == 0 || $health_size > $queue->size()) {
             return;
         }

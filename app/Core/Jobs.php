@@ -3,7 +3,7 @@
 namespace Gino\Jobs\Core;
 
 use Gino\Jobs\Core\IFace\IQueueDriver;
-use Gino\Jobs\Core\IFace\IJob;
+use Gino\Jobs\Core\IFace\IConsumer;
 
 /**
  *
@@ -37,7 +37,7 @@ class Jobs {
      */
     private $__queue;
 
-    public function __construct(IQueueDriver $queue, IJob $job) {
+    public function __construct(IQueueDriver $queue, IConsumer $job) {
         $this->__queue          = $queue;
         $this->__job            = $job;
         $this->__last_busy_time = microtime(true);

@@ -3,7 +3,7 @@
 return array(
     //日志模块
     'log'     => [
-        'log_dir'  => GINO_JOBS_ROOT_PATH . '/var/log', //日志存储的目录
+        'log_dir'  => GINO_JOBS_ROOT_PATH . '/var/logs', //日志存储的目录
         'log_file' => 'application.log', //系统日志文件
     ],
     //进程模块
@@ -18,23 +18,22 @@ return array(
     ],
     //队列模块 - redis
     'queue'   => [
-        /*
-          //队列模块 - redis
-          'class' => '\Gino\Jobs\Core\Queue\RedisQueue',
-          'host'  => '192.168.1.254',
-          'port'  => 6379,
-          'pass'  => '',
-          'db'    => 0,
-         */
-
-        //队列模块 - rabiitmq
-        'class' => '\Gino\Jobs\Core\Queue\RabbitmqQueue',
-        'host'  => '127.0.0.1',
-        'port'  => 5672,
-        'user'  => 'admin',
-        'pass'  => '123456',
-        'vhost' => '/',
-        'qos'   => 1
+        //队列模块 - redis
+        'class' => '\Gino\Jobs\Core\Queue\RedisQueue',
+        'host'  => '192.168.1.254',
+        'port'  => 6379,
+        'pass'  => '',
+        'db'    => 0,
+    /*
+      //队列模块 - rabiitmq
+      'class' => '\Gino\Jobs\Core\Queue\RabbitmqQueue',
+      'host'  => '127.0.0.1',
+      'port'  => 5672,
+      'user'  => 'admin',
+      'pass'  => '123456',
+      'vhost' => '/',
+      'qos'   => 1
+     */
     ],
     //任务模块
     'topics'  => [

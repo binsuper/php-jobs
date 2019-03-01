@@ -20,7 +20,6 @@ class Test implements IConsumer {
      */
     public function consume(IQueueMessage $msg): bool {
         Logger::getLogger()->log('receive msg： ' . $msg->getBody());
-        sleep(1);
         $msg->ack();
         return true;
     }

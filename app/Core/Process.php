@@ -233,9 +233,17 @@ class Process {
             $this->__setProcessName('worker' . $this->_processName);
             try {
                 $job = $topic->newJob();
-            } catch (\RedisException $ex) {
+                if (!$job) {
+                    throw new ExitException('topic(' . $topic->getName() . '): no job');
+                }
+            } catch (\Exception $ex) {
                 Utils::catchError($this->_logger, $ex);
-                $this->waitWorkers();
+                $this->notifyMasterExited();
+                return;
+            } catch (\Throwable $ex) {
+                Utils::catchError($this->_logger, $ex);
+                $this->notifyMasterExited();
+                return;
             }
 
             do {
@@ -430,6 +438,17 @@ class Process {
         //特殊情况下，此时所有子进程全部都已经结束，则直接安全退出
         if (empty($this->__workers)) {
             $this->_exit();
+        }
+    }
+
+    /**
+     * 子进程调用
+     * 通知主进程退出
+     */
+    public function notifyMasterExited() {
+        $pid = $this->getMasterInfo('pid');
+        if ($pid) {
+            \Swoole\Process::kill($pid, SIGUSR1);
         }
     }
 

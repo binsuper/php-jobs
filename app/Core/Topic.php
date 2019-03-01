@@ -60,14 +60,20 @@ class Topic {
      * @param callable $callback
      */
     public function execDynamic($callback) {
-        $health_size = Config::getConfig('process', 'queue_health_size');
-        $queue       = Queue::getQueue($this, false); //非消费者队列
-        if ($health_size == 0 || $health_size > $queue->size()) {
-            return;
-        }
-        //创建最小数量的进程
-        for ($i = count($this->__workers); $i < $this->__max_workers; $i++) {
-            call_user_func($callback);
+        try {
+            $health_size = Config::getConfig('process', 'queue_health_size');
+            $queue       = Queue::getQueue($this, false); //非消费者队列
+            if ($health_size == 0 || $health_size > $queue->size()) {
+                return;
+            }
+            //创建最小数量的进程
+            for ($i = count($this->__workers); $i < $this->__max_workers; $i++) {
+                call_user_func($callback);
+            }
+        } catch (\Exception $ex) {
+            Utils::catchError(Logger::getLogger(), $ex);
+        } catch (\Throwable $ex) {
+            Utils::catchError(Logger::getLogger(), $ex);
         }
     }
 

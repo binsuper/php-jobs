@@ -57,7 +57,7 @@ class RedisQueue implements IQueueDriver {
             if (empty($this->__host) || empty($this->__port)) {
                 throw new \Exception('redis host or port is empty');
             }
-            $this->__handler->pconnect($this->__host, $this->__port, 3);
+            @$this->__handler->pconnect($this->__host, $this->__port, 3);
             if (!empty($this->__auth)) {
                 $this->__handler->auth($this->__auth);
             }
@@ -77,21 +77,21 @@ class RedisQueue implements IQueueDriver {
     }
 
     /**
-     * 重连
-     */
-    public function reconnect() {
-        $this->__connect();
-    }
-
-    /**
      * 返回当前队列长度
      * @return int
      */
     public function size(): int {
-        $len = $this->__command(function() {
-            return $this->__handler->lLen($this->__queue_name);
-        });
-        return $len ?: 0;
+        try {
+            $len = $this->__command(function() {
+                return $this->__handler->lLen($this->__queue_name);
+            });
+            if (!$len) {
+                return 0;
+            }
+            return $len ?: 0;
+        } catch (\Exception $ex) {
+            return 0;
+        }
     }
 
     /**
@@ -117,7 +117,7 @@ class RedisQueue implements IQueueDriver {
                 }
                 //尝试重连
                 try {
-                    if ($this->reconnect()) {
+                    if ($this->__connect()) {
                         return call_user_func($callback);
                     }
                 } catch (\RedisException $ex) {
@@ -158,20 +158,26 @@ class RedisQueue implements IQueueDriver {
      * @return bool
      */
     public function repush(IQueueMessage $msg): bool {
-        $ret = $this->__command(function() use($msg) {
-            return $this->__handler->lPush($this->__queue_name, $msg->getBody());
-        });
-        if ($ret) {
-            return true;
+        try {
+            $ret = $this->__command(function() use($msg) {
+                return $this->__handler->lPush($this->__queue_name, $msg->getBody());
+            });
+            if ($ret) {
+                return true;
+            }
+            return false;
+        } catch (\Exception $ex) {
+            return false;
         }
-        return false;
     }
 
     /**
      * 关闭
      */
     public function close() {
-        $this->__handler->close();
+        if ($this->__handler) {
+            $this->__handler->close();
+        }
     }
 
 }

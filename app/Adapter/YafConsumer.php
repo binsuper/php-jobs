@@ -26,5 +26,5 @@ abstract class YafConsumer implements IConsumer {
      * @param IQueueMessage $msg
      * @return bool 执行成功返回true, 执行失败返回false
      */
-    public function onConsume(IQueueMessage $msg): bool;
+    public abstract function onConsume(IQueueMessage $msg): bool;
 }

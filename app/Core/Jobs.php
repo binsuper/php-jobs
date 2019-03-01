@@ -66,9 +66,15 @@ class Jobs {
         if (null === $msg) {
             return;
         }
-        if ($this->__job->consume($msg)) {
-            $this->__done_count++;
-            $this->__last_busy_time = microtime(true);
+        try {
+            //消费消息
+            if ($this->__job->consume($msg)) {
+                $this->__done_count++;
+                $this->__last_busy_time = microtime(true);
+            }
+        } catch (\Throwable $ex) {
+            //消费时发生错误
+            Utils::catchError(Logger::getLogger(), $ex);
         }
     }
 

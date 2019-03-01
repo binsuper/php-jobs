@@ -279,7 +279,7 @@ class Process {
                     }
                 } catch (ExitException $ex) {
                     $where = false;
-                } catch (\Exception $ex) {
+                } catch (\Throwable $ex) {
                     Utils::catchError($this->_logger, $ex);
                 }
             } while ($where);

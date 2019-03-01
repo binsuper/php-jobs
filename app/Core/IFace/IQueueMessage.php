@@ -17,13 +17,15 @@ interface IQueueMessage {
 
     /**
      * 正确应答
+     * @return bool
      */
-    public function ack();
+    public function ack(): bool;
 
     /**
      * 拒绝消息
      * 
      * @param bool $requeue true表示将消息重新入队列，false则丢弃该消息
+     * @return bool
      */
-    public function reject(bool $requeue);
+    public function reject(bool $requeue): bool;
 }

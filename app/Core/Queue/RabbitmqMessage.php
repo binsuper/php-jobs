@@ -54,16 +54,12 @@ class RabbitmqMessage extends BaseQueueMessage {
      * @return bool
      * @throws ExitException
      */
-    public function ack() {
-        if ($this->__is_operation) {
-            return true;
-        }
+    protected function _ack(): bool {
         //尝试3次
         $try_times = 3;
         do {
             try {
                 $this->_channel->basic_ack($this->_msg->delivery_info['delivery_tag']);
-                $this->__is_operation = true;
                 return true;
             } catch (\Exception $ex) {
                 Utils::catchError(Logger::getLogger(), $ex);
@@ -80,16 +76,12 @@ class RabbitmqMessage extends BaseQueueMessage {
      * @return bool
      * @throws ExitException
      */
-    public function reject(bool $requeue) {
-        if ($this->__is_operation) {
-            return true;
-        }
+    protected function _reject(bool $requeue): bool {
         //尝试3次
         $try_times = 3;
         do {
             try {
                 $this->_channel->basic_reject($this->_msg->delivery_info['delivery_tag'], $requeue);
-                $this->__is_operation = true;
                 return true;
             } catch (\Exception $ex) {
                 Utils::catchError(Logger::getLogger(), $ex);

@@ -32,7 +32,7 @@ class RedisMessage extends BaseQueueMessage {
      * 正确应答
      * @return boolean
      */
-    public function ack() {
+    protected function _ack(): bool {
         return true;
     }
 
@@ -41,10 +41,7 @@ class RedisMessage extends BaseQueueMessage {
      * @param bool $requeue true表示将消息重新入队列，false则丢弃该消息
      * @return boolean
      */
-    public function reject(bool $requeue) {
-        if (!$back) {
-            return true;
-        }
+    protected function _reject(bool $requeue): bool {
         //将消息重新入队列
         return $this->_driver->repush();
     }

@@ -37,6 +37,12 @@ class Jobs {
      */
     private $__queue;
 
+    /**
+     * 任务总的执行时长
+     * @var float
+     */
+    private $__cost_time;
+
     public function __construct(IQueueDriver $queue, IConsumer $job) {
         $this->__queue          = $queue;
         $this->__job            = $job;
@@ -45,10 +51,10 @@ class Jobs {
 
     /**
      * 得到任务空闲的时长
-     * @return float 空闲时长(毫秒)
+     * @return float 空闲时长(整数为秒)
      */
     public function idleTime() {
-        return microtime(true) - $this->__last_busy_time;
+        return bcsub(microtime(true), $this->__last_busy_time, 10);
     }
 
     /**
@@ -56,6 +62,21 @@ class Jobs {
      */
     public function doneCount() {
         return $this->__done_count;
+    }
+
+    /**
+     * 任务的平均用时
+     * @return string
+     */
+    public function avgTime() {
+        if ($this->__done_count == 0 || $this->__cost_time == 0) {
+            return 0 . 'ms';
+        }
+        $avg = bcdiv($this->__cost_time, $this->__done_count, 6);
+        if (bccomp($avg, 10) > 0) {
+            return round($avg, 2) . 's';
+        }
+        return round(($avg * 1000), 1) . 'ms';
     }
 
     /**
@@ -67,10 +88,12 @@ class Jobs {
             return;
         }
         try {
+            $before_time = microtime(true);
             //消费消息
             if ($this->__job->consume($msg)) {
                 $this->__done_count++;
                 $this->__last_busy_time = microtime(true);
+                $this->__cost_time      = bcadd($this->__cost_time, bcsub(microtime(true), $before_time, 10), 10);
             }
         } catch (\Throwable $ex) {
             //消费时发生错误

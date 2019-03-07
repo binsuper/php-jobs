@@ -57,7 +57,7 @@ class RedisQueue implements IQueueDriver {
             if (empty($this->__host) || empty($this->__port)) {
                 throw new \Exception('redis host or port is empty');
             }
-            @$this->__handler->pconnect($this->__host, $this->__port, 3);
+            @$this->__handler->connect($this->__host, $this->__port, 3);
             if (!empty($this->__auth)) {
                 $this->__handler->auth($this->__auth);
             }

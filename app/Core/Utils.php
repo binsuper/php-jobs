@@ -31,4 +31,37 @@ class Utils {
         $logger->log($error, \Gino\Jobs\Core\Logger::LEVEL_ERROR, 'error', true);
     }
 
+    /**
+     * 获取负载情况
+     *
+     * @return string
+     */
+    public static function getSysLoadAvg() {
+        $loadavg = function_exists('sys_getloadavg') ? array_map('round', sys_getloadavg(), [2]) : ['-', '-', '-'];
+        return 'load average: ' . implode(', ', $loadavg);
+    }
+
+    /**
+     * 获取内存使用量
+     *
+     * @return string
+     */
+    public static function getMemoryUsage() {
+        return round(memory_get_usage(true) / (1024 * 1024), 2) . ' MB';
+    }
+
+    /**
+     * 
+     * @param array $columns
+     * @return string
+     */
+    public static function formatTablePrint(array $columns) {
+        $str  = '';
+        $rule = [10, 15, 10, 10, 10, 10, 10, 10, 15];
+        foreach ($columns as $i => $col) {
+            $str .= str_pad($col, ($rule[$i] ?? 0) < strlen($col) ? strlen($col) + 2 : ($rule[$i] ?? 0));
+        }
+        return $str;
+    }
+
 }

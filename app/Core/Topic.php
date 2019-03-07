@@ -62,8 +62,8 @@ class Topic {
     public function execDynamic($callback) {
         try {
             $health_size = Config::getConfig('process', 'queue_health_size');
-            $queue       = Queue::getQueue($this, false); //非消费者队列
-            if ($health_size == 0 || $health_size > $queue->size()) {
+            $queue_size  = $this->getQueueSize();
+            if ($health_size == 0 || $health_size > $queue_size) {
                 return;
             }
             //创建最小数量的进程
@@ -75,6 +75,15 @@ class Topic {
         } catch (\Throwable $ex) {
             Utils::catchError(Logger::getLogger(), $ex);
         }
+    }
+
+    /**
+     * 获取队里中的消息数量
+     * @return int
+     */
+    public function getQueueSize() {
+        $queue = Queue::getQueue($this, false); //非消费者队列
+        return $queue->size();
     }
 
     /**

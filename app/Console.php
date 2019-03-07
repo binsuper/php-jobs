@@ -37,11 +37,11 @@ class Console {
      * @global array $argv
      */
     public function run() {
-      
-        if(!extension_loaded('swoole')){
+
+        if (!extension_loaded('swoole')) {
             die('I need swoole(php-extension)！！！');
         }
-        
+
         global $argv;
         $command_args = array_slice($argv, 1);
         $act          = $command_args[0] ?? 'help';
@@ -59,6 +59,9 @@ class Console {
                 break;
             case 'restart': //重启
                 $this->restart();
+                break;
+            case 'status': //重启
+                $this->showStatus();
                 break;
             case 'zombie': //杀死僵尸进程
                 $this->killZombie();
@@ -85,6 +88,7 @@ class Console {
 {#g}  start         {##}start the program
 {#g}  stop          {##}stop the program
 {#g}  restart       {##}restart the program
+{#g}  status        {##}show status
 {#g}  zombie        {##}try killing the zombie process
 {#g}  check         {##}check the configuration
 
@@ -191,6 +195,19 @@ HELP;
     public function killZombie() {
         $master_process = new Process();
         $master_process->waitWorkers();
+    }
+
+    /**
+     * 展示状态信息
+     */
+    public function showStatus() {
+        $master_process = new Process();
+        $pid            = $master_process->getMasterInfo('pid');
+        if (!$pid || !\Swoole\Process::kill($pid, 0)) {
+            echo 'program is not running';
+            return;
+        }
+        \Swoole\Process::kill($pid, SIGUSR2);
     }
 
 }

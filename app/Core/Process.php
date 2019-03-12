@@ -188,7 +188,10 @@ class Process {
      * @param string $process_name
      */
     private function __setProcessName(string $process_name) {
-        swoole_set_process_name($process_name);
+        //mac os 不支持设置进程名称
+        if (function_exists('swoole_set_process_name') && PHP_OS != 'Darwin') {
+            swoole_set_process_name($process_name);
+        }
     }
 
     /**
@@ -416,7 +419,7 @@ class Process {
         //检测topic
         //4.2.10版本开始，不允许在协程中fork进程，所以使用信号处理
         \Swoole\Timer::tick(5000, function() {
-            \Swoole\Process::kill($this->__pid, SIGALRM);
+            @\Swoole\Process::kill($this->__pid, SIGALRM);
         });
     }
 
@@ -424,16 +427,20 @@ class Process {
      * 动态进程管理
      */
     private function __checkDynamic() {
-        foreach ($this->__topics as $topic) {
-            $topic->execDynamic(function() use($topic) {
-                if (self::STATUS_RUNNING !== $this->__status) {
-                    return;
-                }
-                $pid = $this->_forkWorker($topic, Worker::TYPE_DYNAMIC);
-                if ($pid) {
-                    $this->_logger->log("worker start, PID={$pid}, TYPE=" . Worker::TYPE_DYNAMIC, Logger::LEVEL_INFO, $this->__process_log_file, true);
-                }
-            });
+        try {
+            foreach ($this->__topics as $topic) {
+                $topic->execDynamic(function() use($topic) {
+                    if (self::STATUS_RUNNING !== $this->__status) {
+                        return;
+                    }
+                    $pid = $this->_forkWorker($topic, Worker::TYPE_DYNAMIC);
+                    if ($pid) {
+                        $this->_logger->log("worker start, PID={$pid}, TYPE=" . Worker::TYPE_DYNAMIC, Logger::LEVEL_INFO, $this->__process_log_file, true);
+                    }
+                });
+            }
+        } catch (\Throwable $ex) {
+            Utils::catchError($this->_logger, $ex);
         }
     }
 
@@ -509,8 +516,8 @@ class Process {
         $str .= "php-jobs_version: \t" . self::VERSION . PHP_EOL;
 
         $str .= PHP_EOL . '#rumtime' . PHP_EOL;
-        $str .= "now: \t\t\t" . date('Y-m-d H:i:s') . PHP_EOL;
         $str .= "start_at: \t\t" . date('Y-m-d H:i:s', $this->__begin_time) . PHP_EOL;
+        $str .= "now: \t\t\t" . date('Y-m-d H:i:s') . PHP_EOL;
         $str .= "duration: \t\t" . floor((time() - $this->__begin_time) / 86400) . ' days ' . floor(((time() - $this->__begin_time) % 86400) / 3600) . ' hours' . PHP_EOL;
         $str .= "loadavg: \t\t" . Utils::getSysLoadAvg() . PHP_EOL;
         $str .= "memory_used: \t\t" . Utils::getMemoryUsage() . PHP_EOL;
@@ -578,7 +585,7 @@ class Process {
     }
 
     /**
-     * 更新子进程信息
+     * 读取子进程信息
      */
     protected function _readWorkerStatus(int $pid) {
         $file = $this->__worker_info_dir . DIRECTORY_SEPARATOR . $pid . '.info';

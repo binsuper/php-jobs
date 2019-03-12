@@ -130,7 +130,7 @@ HELP;
             }
         } catch (\Exception $ex) {
             Core\Utils::catchError($this->_logger, $ex);
-            echo 'stop error';
+            echo 'stop error' . PHP_EOL;
         }
         return false;
     }
@@ -204,7 +204,7 @@ HELP;
         $master_process = new Process();
         $pid            = $master_process->getMasterInfo('pid');
         if (!$pid || !\Swoole\Process::kill($pid, 0)) {
-            echo 'program is not running';
+            echo 'program is not running' . PHP_EOL;
             return;
         }
         \Swoole\Process::kill($pid, SIGUSR2);

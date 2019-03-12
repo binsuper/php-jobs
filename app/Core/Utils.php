@@ -3,7 +3,7 @@
 namespace Gino\Jobs\Core;
 
 /**
- * 辅助
+ * 工具
  * 
  * @author Gino Huang <binsuper@126.com>
  */
@@ -57,7 +57,7 @@ class Utils {
      */
     public static function formatTablePrint(array $columns) {
         $str  = '';
-        $rule = [10, 15, 10, 10, 10, 10, 10, 10, 15];
+        $rule = [10, 20, 10, 10, 10, 10, 10, 10, 15];
         foreach ($columns as $i => $col) {
             $str .= str_pad($col, ($rule[$i] ?? 0) < strlen($col) ? strlen($col) + 2 : ($rule[$i] ?? 0));
         }

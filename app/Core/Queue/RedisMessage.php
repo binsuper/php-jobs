@@ -42,8 +42,11 @@ class RedisMessage extends BaseQueueMessage {
      * @return boolean
      */
     protected function _reject(bool $requeue): bool {
-        //将消息重新入队列
-        return $this->_driver->repush();
+        if ($requeue) {
+            //将消息重新入队列
+            return $this->_driver->repush();
+        }
+        return true;
     }
 
 }

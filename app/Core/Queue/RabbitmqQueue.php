@@ -132,8 +132,6 @@ class RabbitmqQueue implements IQueueDriver {
      * @throws \Exception
      */
     private function __connect(int $max_retry_tiems = 0) {
-        Logger::getLogger()->log('connect...');
-        Logger::getLogger()->flush();
         //先关闭之前的连接
         try {
             if ($this->__channel instanceof AMQPChannel) {

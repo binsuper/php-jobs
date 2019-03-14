@@ -207,7 +207,10 @@ HELP;
             echo 'program is not running' . PHP_EOL;
             return;
         }
-        \Swoole\Process::kill($pid, SIGUSR2);
+        if (@\Swoole\Process::kill($pid, SIGUSR2)) {
+            $dir = Config::getConfig('process', 'data_dir');
+            echo 'program status was updated; detail in the file ' . $dir . DIRECTORY_SEPARATOR . 'status.info';
+        }
     }
 
 }

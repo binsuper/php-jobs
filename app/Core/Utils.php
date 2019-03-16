@@ -38,7 +38,7 @@ class Utils {
      */
     public static function getSysLoadAvg() {
         $loadavg = function_exists('sys_getloadavg') ? array_map('round', sys_getloadavg(), [2]) : ['-', '-', '-'];
-        return 'load average: ' . implode(', ', $loadavg);
+        return implode(', ', $loadavg);
     }
 
     /**
@@ -57,7 +57,7 @@ class Utils {
      */
     public static function formatTablePrint(array $columns) {
         $str  = '';
-        $rule = [10, 20, 10, 10, 10, 10, 10, 10, 15];
+        $rule = [10, 25, 10, 10, 10, 10, 10, 10, 15];
         foreach ($columns as $i => $col) {
             $str .= str_pad($col, ($rule[$i] ?? 0) < strlen($col) ? strlen($col) + 2 : ($rule[$i] ?? 0));
         }

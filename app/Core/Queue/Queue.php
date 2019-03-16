@@ -2,8 +2,11 @@
 
 namespace Gino\Jobs\Core\Queue;
 
-use \Gino\Jobs\Core\IFace\IQueueDriver;
-use \Gino\Jobs\Core\Logger;
+use \Gino\Jobs\Core\IFace\{
+    IQueueDriver,
+    IQueueProducer,
+    IQueueDelay
+};
 use \Gino\Jobs\Core\Topic;
 use \Gino\Jobs\Core\Config;
 
@@ -20,15 +23,15 @@ class Queue {
      * 获取队列
      * @param Topic $topic
      * @param bool $is_consume 设置是否消费队列, 默认为true
-     * @return IQueueDriver 失败返回false
+     * @return IQueueDriver|IQueueProducer|IQueueDelay 失败返回false
      */
     public static function getQueue(Topic $topic, bool $is_consume = true) {
-        $config       = Config::getConfig('queue');
+        $config                = Config::getConfig('queue');
         $config['is_consumer'] = $is_consume;
-        $topic_name   = $topic->getName();
-        $topic_config = $topic->getConfig();
-        $class        = $config['class'];
-        $pid          = getmypid();
+        $topic_name            = $topic->getName();
+        $topic_config          = $topic->getConfig();
+        $class                 = $config['class'];
+        $pid                   = getmypid();
 
         $key = md5($pid . $class . serialize($config));
         if (!isset(static::$__instance[$key]) || !is_object(static::$__instance[$key])) {

@@ -16,16 +16,17 @@ return array(
         'dynamic_idle_time' => 600, //动态子进程闲置的最长时间(0为不限制)
         'queue_health_size' => 10, //健康的队列长度, 超出后将开启动态进程
     ],
-    //队列模块 - redis
+    //队列模块
     'queue'   => [
-        //队列模块 - redis
-        'class' => '\Gino\Jobs\Core\Queue\RedisQueue',
-        'host'  => '192.168.1.254',
-        'port'  => 6379,
-        'pass'  => '',
-        'db'    => 0,
+        //redis
+        'class'            => '\Gino\Jobs\Core\Queue\RedisQueue',
+        'host'             => '192.168.1.254',
+        'port'             => 6379,
+        'pass'             => '',
+        'db'               => 0,
+        'delay_queue_name' => 'php-jobs-delay', //延迟队列的名称
     /*
-      //队列模块 - rabiitmq
+      //rabiitmq
       'class' => '\Gino\Jobs\Core\Queue\RabbitmqQueue',
       'host'  => '127.0.0.1',
       'port'  => 5672,

@@ -3,7 +3,10 @@
 namespace Gino\Jobs\Core\Queue;
 
 use \Gino\Jobs\Core\IFace\IQueueMessage;
-use \Gino\Jobs\Core\IFace\IQueueDriver;
+use \Gino\Jobs\Core\IFace\{
+    IQueueDriver,
+    IQueueProducer
+};
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
@@ -19,7 +22,7 @@ use PhpAmqpLib\Exception\{
  * 
  * @author GinoHuang <binsuper@126.com>
  */
-class RabbitmqQueue implements IQueueDriver {
+class RabbitmqQueue implements IQueueDriver, IQueueProducer {
 
     private $__host;
     private $__port;
@@ -305,6 +308,27 @@ class RabbitmqQueue implements IQueueDriver {
             return $message_count;
         } catch (\Exception $ex) {
             return 0;
+        }
+    }
+
+    /**
+     * 往队列中投递消息
+     * @param string $body
+     * @return bool
+     */
+    public function push(string $body): bool {
+        try {
+            return $this->__command(function() use($body) {
+                        if (!$this->__channel) {
+                            throw new ConnectionException();
+                        }
+                        $msg = new AMQPMessage($body);
+                        $this->__channel->basic_publish($msg, $this->__exchange_name, $this->__binding_key);
+                        return true;
+                    });
+        } catch (\Exception $ex) {
+            Utils::catchError(Logger::getLogger(), $ex);
+            return false;
         }
     }
 

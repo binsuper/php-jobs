@@ -38,12 +38,6 @@ class Logger implements ILogger {
         Utils::mkdir($this->__log_dir);
     }
 
-    /*
-      public function __destruct() {
-      $this->flush();
-      }
-     */
-
     /**
      * 获取实例
      * 

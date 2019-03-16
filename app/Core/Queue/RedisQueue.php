@@ -2,8 +2,12 @@
 
 namespace Gino\Jobs\Core\Queue;
 
-use \Gino\Jobs\Core\IFace\IQueueMessage;
-use \Gino\Jobs\Core\IFace\IQueueDriver;
+use \Gino\Jobs\Core\IFace\{
+    IQueueMessage,
+    IQueueDriver,
+    IQueueProducer,
+    IQueueDelay
+};
 use \Gino\Jobs\Core\Utils;
 use \Gino\Jobs\Core\Logger;
 
@@ -11,7 +15,7 @@ use \Gino\Jobs\Core\Logger;
  * 
  * @author GinoHuang <binsuper@126.com>
  */
-class RedisQueue implements IQueueDriver {
+class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
 
     private $__host;
     private $__port;
@@ -153,14 +157,14 @@ class RedisQueue implements IQueueDriver {
     }
 
     /**
-     * 将消息重新加入到队列中
-     * @param IQueueMessage $msg
+     * 往队列中投递消息
+     * @param string $body
      * @return bool
      */
-    public function repush(IQueueMessage $msg): bool {
+    public function push(string $body): bool {
         try {
-            $ret = $this->__command(function() use($msg) {
-                return $this->__handler->lPush($this->__queue_name, $msg->getBody());
+            $ret = $this->__command(function() use($body) {
+                return $this->__handler->lPush($this->__queue_name, $body);
             });
             if ($ret) {
                 return true;
@@ -172,11 +176,71 @@ class RedisQueue implements IQueueDriver {
     }
 
     /**
+     * 将消息重新加入到队列中
+     * @param IQueueMessage $msg
+     * @return bool
+     */
+    public function repush(IQueueMessage $msg): bool {
+        return $this->push($msg->getBody());
+    }
+
+    /**
      * 关闭
      */
     public function close() {
         if ($this->__handler) {
             $this->__handler->close();
+        }
+    }
+
+    /**
+     * 获取延迟队列消息的数量
+     * @param string $queue
+     * @return int
+     */
+    public function getDelayQueueSize(string $queue): int {
+        try {
+            $len = $this->__command(function() use($queue) {
+                return $this->__handler->lLen($queue);
+            });
+            if (!$len) {
+                return 0;
+            }
+            return $len ?: 0;
+        } catch (\Exception $ex) {
+            return 0;
+        }
+    }
+
+    /**
+     * 遍历延迟队列的消息
+     * 如果时间到点，则将消息以参数的形式传入到回调函数中
+     * @param string $queue
+     * @param callable $callback callback($delayMessage)
+     */
+    public function scanDelayQueue(string $queue, $callback) {
+        $count = $this->getDelayQueueSize($queue);
+        while ($count-- > 0) {
+            try {
+                $body = $this->__handler->rPop($queue);
+                if (!$body) {
+                    continue;
+                }
+                $msg = new Delay\Message($body);
+                if (!$msg->onTime()) { //没到点，重回队列
+                    $msg->roll();
+                    $this->__handler->lPush($queue, (string) $msg);
+                    continue;
+                }
+                //到点了，往目标队列投递消息
+                if (!call_user_func($callback, $msg)) {
+                    //失败，回到延迟队列
+                    $msg->roll();
+                    $this->__handler->lPush($queue, (string) $msg);
+                }
+            } catch (\Throwable $ex) {
+                Utils::catchError(Logger::getLogger(), $ex);
+            }
         }
     }
 

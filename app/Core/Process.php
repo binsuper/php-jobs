@@ -5,6 +5,8 @@ namespace Gino\Jobs\Core;
 use Gino\Jobs\Core\Logger;
 use Gino\Jobs\Core\Config;
 use Gino\Jobs\Core\Exception\ExitException;
+use Gino\Jobs\Core\IFace\IQueueDelay;
+use Gino\Jobs\Core\Queue\Delay\Message as DelayMessage;
 
 /**
  * 进程管理
@@ -66,6 +68,18 @@ class Process {
     protected $_processName;
     private $__begin_time;
 
+    /**
+     * 延迟队列的名称
+     * @var string 
+     */
+    private $__delay_queue_name;
+
+    /**
+     * 延迟队列的执行索引
+     * @var int
+     */
+    private $__roll_slot = 0;
+
     public function __construct() {
         $config = Config::getConfig('process');
         if (empty($config) || empty($config['data_dir'])) {
@@ -83,6 +97,7 @@ class Process {
         $this->__max_exeucte_jobs  = $config['max_execute_jobs'] ?? 0;
         $this->__dynamic_idle_time = $config['dynamic_idle_time'] ?? 0;
         $this->__queue_health_size = $config['queue_health_size'] ?? 0;
+        $this->__delay_queue_name  = Config::getConfig('queue', 'delay_queue_name', '');
         Utils::mkdir($this->__pid_dir);
         Utils::mkdir($this->__worker_info_dir);
     }
@@ -355,7 +370,7 @@ class Process {
         //进程状态信息
         \Swoole\Process::signal(SIGUSR2, function($signo) {
             $status = $this->_saveMasterStatus();
-           // echo $status;
+            // echo $status;
         });
 
         //动态进程管理
@@ -421,6 +436,36 @@ class Process {
         \Swoole\Timer::tick(5000, function() {
             @\Swoole\Process::kill($this->__pid, SIGALRM);
         });
+
+        //处理延迟任务
+        if ($this->__delay_queue_name) {
+            \Swoole\Timer::tick(1000, function($timer_id) {
+                (function($slot) use ($timer_id) {
+                    try {
+                        if (empty($this->__topics)) {
+                            \Swoole\Timer::clear($timer_id);
+                            return;
+                        }
+                        $queue = Queue\Queue::getQueue($this->__topics[0], false);
+                        if (!($queue instanceof IQueueDelay)) { //不支持延迟队列
+                            \Swoole\Timer::clear($timer_id);
+                            return;
+                        }
+                        $delay_queue_name = $this->__delay_queue_name . '#' . $slot;
+                        $queue->scanDelayQueue($delay_queue_name, function(DelayMessage $msg) {
+                            $topic = Topic::instanceByName($msg->getTargetName());
+                            if (!$topic) {
+                                return false;
+                            }
+                            return $topic->pushMsg($msg->getPayload()) ? true : false;
+                        });
+                    } catch (\Throwable $ex) {
+                        Utils::catchError($this->_logger, $ex);
+                    }
+                })($this->__roll_slot);
+                $this->__roll_slot = $this->__roll_slot + 1 >= 60 ? 0 : $this->__roll_slot + 1;
+            });
+        }
     }
 
     /**

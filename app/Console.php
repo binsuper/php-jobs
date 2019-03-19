@@ -158,6 +158,9 @@ HELP;
             if (empty($topics_config)) {
                 throw new \Exception('config<topics> is empty');
             }
+            if (!is_array($topics_config)) {
+                throw new \Exception('config<topics> must be a array');
+            }
             foreach ($topics_config as $topic_info) {
                 if (empty($topic_info['name'])) {
                     throw new \Exception('topic\'s name must be a non-empty string');

@@ -38,6 +38,16 @@ return array(
     ],
     //任务模块
     'topics'  => [
+        //任务: 延迟任务分派
+        //要做延迟任务的，需要加上下面的任务，帮助任务分配到指定的延迟队列
+        [
+            'min_workers' => 1, //最少的进程数
+            'max_workers' => 2, //最大的进程数
+            'name'        => 'php-jobs-delay',
+            'action'      => '\Gino\Jobs\Core\Action\RedisDelayDeliver',
+            'exchange'    => 'phpjob'
+        ],
+        //普通
         [
             'min_workers' => 2, //最少的进程数
             'max_workers' => 4, //最大的进程数

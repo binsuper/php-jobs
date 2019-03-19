@@ -11,10 +11,15 @@ interface IQueueDriver {
     /**
      * 获取连接
      * @param array $config
-     * @param string $topic_name
+     * @param string $queue_name
      * @return IQueueDriver 失败返回false
      */
-    public static function getConnection(array $config, string $topic_name, array $topic_config = []);
+    public static function getConnection(array $config, string $queue_name, array $topic_config = []);
+
+    /**
+     * 获得队列名称
+     */
+    public function getQueueName(): string;
 
     /**
      * 队列是否连接

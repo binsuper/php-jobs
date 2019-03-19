@@ -11,7 +11,6 @@ use Gino\Jobs\Core\Queue\Queue;
  */
 class Topic {
 
-    private static $__instance = [];
     private $__topic_name;          //主题名称
     private $__config          = [];
     private $__min_workers     = 1;     //最少进程数
@@ -25,16 +24,6 @@ class Topic {
         $this->__max_workers                     = $topic_info['max_workers'] ?? 1;
         $this->__topic_name                      = $topic_info['name'];
         $this->__action                          = $topic_info['action'];
-        static::$__instance[$this->__topic_name] = $this;
-    }
-
-    /**
-     * 通过名称获取topic
-     * @param string $name
-     * @return Topic
-     */
-    public static function instanceByName(string $name) {
-        return static::$__instance[$name] ?? null;
     }
 
     /**

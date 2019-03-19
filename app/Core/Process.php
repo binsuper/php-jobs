@@ -440,30 +440,22 @@ class Process {
         //处理延迟任务
         if ($this->__delay_queue_name) {
             \Swoole\Timer::tick(1000, function($timer_id) {
-                (function($slot) use ($timer_id) {
-                    try {
-                        if (empty($this->__topics)) {
-                            \Swoole\Timer::clear($timer_id);
-                            return;
-                        }
-                        $queue = Queue\Queue::getQueue($this->__topics[0], false);
-                        if (!($queue instanceof IQueueDelay)) { //不支持延迟队列
-                            \Swoole\Timer::clear($timer_id);
-                            return;
-                        }
-                        $delay_queue_name = $this->__delay_queue_name . '#' . $slot;
-                        $queue->scanDelayQueue($delay_queue_name, function(DelayMessage $msg) {
-                            $topic = Topic::instanceByName($msg->getTargetName());
-                            if (!$topic) {
-                                return false;
-                            }
-                            return $topic->pushMsg($msg->getPayload()) ? true : false;
-                        });
-                    } catch (\Throwable $ex) {
-                        Utils::catchError($this->_logger, $ex);
+                try {
+                    if (empty($this->__topics)) {
+                        \Swoole\Timer::clear($timer_id);
+                        return;
                     }
-                })($this->__roll_slot);
-                $this->__roll_slot = $this->__roll_slot + 1 >= 60 ? 0 : $this->__roll_slot + 1;
+                    $queue = Queue\Queue::getDelayQueue();
+                    if (!($queue instanceof IQueueDelay)) { //不支持延迟队列
+                        \Swoole\Timer::clear($timer_id);
+                        return;
+                    }
+                    $queue->scanDelayQueue(function(DelayMessage $msg) use($queue) {
+                        return $queue->pushTarget($msg->getTargetName(), $msg->getPayload()) ? true : false;
+                    });
+                } catch (\Throwable $ex) {
+                    Utils::catchError($this->_logger, $ex);
+                }
             });
         }
     }

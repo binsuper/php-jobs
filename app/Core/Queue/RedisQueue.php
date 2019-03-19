@@ -21,17 +21,21 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
     private $__port;
     private $__auth;
     private $__db;
+
+    /**
+     * @var \Redis
+     */
     private $__handler;
     private $__queue_name;
 
     /**
      * 获取连接
      * @param array $config
-     * @param string $topic_name
+     * @param string $queue_name
      * @return IQueueDriver 失败返回false
      */
-    public static function getConnection(array $config, string $topic_name, array $topic_config = []) {
-        return new self($config, $topic_name);
+    public static function getConnection(array $config, string $queue_name, array $topic_config = []) {
+        return new self($config, $queue_name);
     }
 
     private function __construct(array $config, string $queue_name) {
@@ -193,20 +197,29 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
         }
     }
 
+    public function getQueueName(): string {
+        return $this->__queue_name;
+    }
+
     /**
      * 获取延迟队列消息的数量
      * @param string $queue
      * @return int
      */
-    public function getDelayQueueSize(string $queue): int {
+    public function getDelayQueueSize(): int {
         try {
-            $len = $this->__command(function() use($queue) {
-                return $this->__handler->lLen($queue);
+            $count = $this->__command(function() {
+                $slots = 60;
+                $count = 0;
+                while (--$slots >= 0) {
+                    $count += $this->__handler->lLen($this->__queue_name . '#' . $slots);
+                }
+                return $count;
             });
-            if (!$len) {
+            if (!$count) {
                 return 0;
             }
-            return $len ?: 0;
+            return $count ?: 0;
         } catch (\Exception $ex) {
             return 0;
         }
@@ -215,32 +228,116 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
     /**
      * 遍历延迟队列的消息
      * 如果时间到点，则将消息以参数的形式传入到回调函数中
-     * @param string $queue
      * @param callable $callback callback($delayMessage)
      */
-    public function scanDelayQueue(string $queue, $callback) {
-        $count = $this->getDelayQueueSize($queue);
-        while ($count-- > 0) {
+    public function scanDelayQueue($callback) {
+        $slot_key = $this->__queue_name . '#slot';
+        try {
+            if (!isset($this->delay_slot)) {
+                $this->delay_slot = $this->__command(function() use($slot_key) {
+                    return $this->__handler->get($slot_key) ?: 0;
+                });
+                $this->delay_slot = intval($this->delay_slot) % 60;
+            }
+        } catch (\Throwable $ex) {
+            Utils::catchError(Logger::getLogger(), $ex);
+            return;
+        }
+        //更新slot
+        try {
+            $this->__command(function() use($slot_key) {
+                return $this->__handler->incr($slot_key);
+            });
+        } catch (\Throwable $ex) {
+            Utils::catchError(Logger::getLogger(), $ex);
+            return;
+        }
+        $slot             = $this->delay_slot;
+        $this->delay_slot = $this->delay_slot + 1 >= 60 ? 0 : $this->delay_slot + 1;
+        //协程
+        go(function() use($slot, $callback) {
             try {
-                $body = $this->__handler->rPop($queue);
-                if (!$body) {
-                    continue;
-                }
-                $msg = new Delay\Message($body);
-                if (!$msg->onTime()) { //没到点，重回队列
-                    $msg->roll();
-                    $this->__handler->lPush($queue, (string) $msg);
-                    continue;
-                }
-                //到点了，往目标队列投递消息
-                if (!call_user_func($callback, $msg)) {
-                    //失败，回到延迟队列
-                    $msg->roll();
-                    $this->__handler->lPush($queue, (string) $msg);
-                }
+                $delay_queue = $this->__queue_name . '#' . $slot;
+                $count       = $this->__command(function() use($delay_queue) {
+                    return $this->__handler->lLen($delay_queue);
+                });
             } catch (\Throwable $ex) {
                 Utils::catchError(Logger::getLogger(), $ex);
+                return;
             }
+            echo $delay_queue . PHP_EOL;
+            while ($count && $count-- > 0) {
+                try {
+                    $body = $this->__handler->rPop($delay_queue);
+                    if (!$body) {
+                        continue;
+                    }
+                    $msg = new Delay\Message($body);
+                    if (!$msg->onTime()) { //没到点，重回队列
+                        $msg->roll();
+                        $this->__handler->lPush($delay_queue, (string) $msg);
+                        continue;
+                    }
+                    //到点了，往目标队列投递消息
+                    if (!call_user_func($callback, $msg)) {
+                        //失败，回到延迟队列
+                        $msg->roll();
+                        $this->__handler->lPush($delay_queue, (string) $msg);
+                    }
+                } catch (\Throwable $ex) {
+                    Utils::catchError(Logger::getLogger(), $ex);
+                }
+            }
+        });
+    }
+
+    /**
+     * 将消息推送到延时队列
+     * @param string $target_queue_name 目标队列
+     * @param string $msg 消息体
+     * @param int $delay 延迟时间
+     * @return bool
+     */
+    public function pushDelay(string $target_queue_name, string $msg, int $delay): bool {
+        $slot_key = $this->__queue_name . '#slot';
+        try {
+            $slot = $this->__command(function() use($slot_key) {
+                return $this->__handler->get($slot_key) ?: 0;
+            });
+        } catch (\Throwable $ex) {
+            Utils::catchError(Logger::getLogger(), $ex);
+            return false;
+        }
+        $delay++; //往后加一秒，保证任务不会提前触发
+        $target_slot  = ($delay + $slot) % 60;
+        $target_delay = floor($delay / 60);
+        $data         = json_encode([
+            'target'  => $target_queue_name,
+            'payload' => $msg,
+            'delay'   => $target_delay
+                ], JSON_UNESCAPED_UNICODE);
+        $delay_queue  = $this->__queue_name . '#' . $target_slot;
+        return $this->pushTarget($delay_queue, $data) ? true : false;
+    }
+
+    /**
+     * 将延时消息推送至目标队列
+     * @param string $target_queue_name
+     * @return bool
+     */
+    public function pushTarget(string $target_queue_name, string $msg): bool {
+        try {
+            $ret = $this->__command(function() use($target_queue_name, $msg) {
+                return $this->__handler->lPush($target_queue_name, $msg);
+            });
+            if ($ret) {
+                echo 'push to ' . $target_queue_name . '; data: ' . $msg;
+                return true;
+            }
+            return false;
+        } catch (\Exception $ex) {
+            Utils::catchError(Logger::getLogger(), $ex);
+            return false;
         }
     }
 

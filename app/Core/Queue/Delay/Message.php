@@ -18,7 +18,7 @@ class Message {
      * 剩余的圈数
      * @var int 
      */
-    private $__roll_times;
+    private $__delay;
 
     /**
      * 投递的消息
@@ -32,14 +32,14 @@ class Message {
             throw new \Exception(json_last_error_msg());
         }
         $this->__target_topic_name = $info['target'] ?? '';
-        $this->__roll_times        = $info['times'] ?? 0;
+        $this->__delay             = $info['delay'] ?? 0;
         $this->__payload           = $info['payload'] ?? '';
     }
 
     public function __toString() {
         return json_encode([
             'target'  => $this->__target_topic_name,
-            'times'   => $this->__roll_times,
+            'delay'   => $this->__delay,
             'payload' => $this->__payload,
                 ], JSON_UNESCAPED_UNICODE);
     }
@@ -57,7 +57,7 @@ class Message {
      * @return bool
      */
     public function onTime(): bool {
-        return $this->__roll_times == 0;
+        return $this->__delay == 0;
     }
 
     /**
@@ -73,8 +73,8 @@ class Message {
      * @return int
      */
     public function roll() {
-        $this->__roll_times = $this->__roll_times <= 0 ? 0 : $this->__roll_times - 1;
-        return $this->__roll_times;
+        $this->__delay = $this->__delay <= 0 ? 0 : $this->__delay - 1;
+        return $this->__delay;
     }
 
 }

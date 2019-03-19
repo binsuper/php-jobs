@@ -28,4 +28,9 @@ interface IQueueMessage {
      * @return bool
      */
     public function reject(bool $requeue): bool;
+
+    /**
+     * 获取队列名称
+     */
+    public function getQueueName(): string;
 }

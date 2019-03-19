@@ -93,17 +93,17 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
     /**
      * 获取连接
      * @param array $config
-     * @param string $topic_name
+     * @param string $queue_name
      * @param string $more_config
      * @return IQueueDriver 失败返回false
      * @throws Exception
      */
-    public static function getConnection(array $config, string $topic_name, array $more_config = []) {
+    public static function getConnection(array $config, string $queue_name, array $more_config = []) {
         $exchange_name = $more_config['exchange'] ?? '';
         if (empty($exchange_name)) {
             throw new Exception('exchange must be set');
         }
-        return new self($config, $topic_name, $exchange_name);
+        return new self($config, $queue_name, $exchange_name);
     }
 
     private function __construct(array $config, string $binding_key, string $exchange_name) {
@@ -330,6 +330,10 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
             Utils::catchError(Logger::getLogger(), $ex);
             return false;
         }
+    }
+
+    public function getQueueName(): string {
+        return $this->__queue_name;
     }
 
 }

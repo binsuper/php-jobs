@@ -51,6 +51,14 @@ abstract class BaseQueueMessage implements IQueueMessage {
         return $ret;
     }
 
+    /**
+     * 获取队列名称
+     * @return string
+     */
+    public function getQueueName(): string {
+        return $this->_driver->getQueueName();
+    }
+
     abstract protected function _ack(): bool;
 
     abstract protected function _reject(bool $requeue): bool;

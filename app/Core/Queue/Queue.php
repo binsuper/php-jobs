@@ -40,7 +40,39 @@ class Queue {
                 try {
                     static::$__instance[$key] = $class::getConnection($config, $topic_name, $topic_config);
                     return static::$__instance[$key];
-                } catch (Exception $ex) {
+                } catch (\Exception $ex) {
+                    $last_ex = $ex;
+                }
+            }
+            if (!$last_ex) {
+                throw $last_ex;
+            }
+        }
+        return static::$__instance[$key];
+    }
+
+    /**
+     * 获取延时队列
+     * @return IQueueProducer|IQueueDelay 失败返回false
+     * @throws \Exception
+     */
+    public static function getDelayQueue() {
+        $delay_queue_name      = Config::getConfig('queue', 'delay_queue_name');
+        $config                = Config::getConfig('queue');
+        $config['is_consumer'] = false;
+        $class                 = $config['class'];
+        $pid                   = getmypid();
+        if (empty($delay_queue_name)) {
+            return false;
+        }
+        $key = md5($pid . $class . serialize($config) . 'delay');
+        if (!isset(static::$__instance[$key]) || !is_object(static::$__instance[$key])) {
+            $last_ex = null;
+            for ($i = 0; $i != 3; $i++) {
+                try {
+                    static::$__instance[$key] = $class::getConnection($config, $delay_queue_name);
+                    return static::$__instance[$key];
+                } catch (\Exception $ex) {
                     $last_ex = $ex;
                 }
             }

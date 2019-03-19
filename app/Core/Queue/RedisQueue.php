@@ -265,7 +265,6 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
                 Utils::catchError(Logger::getLogger(), $ex);
                 return;
             }
-            echo $delay_queue . PHP_EOL;
             while ($count && $count-- > 0) {
                 try {
                     $body = $this->__handler->rPop($delay_queue);
@@ -331,7 +330,6 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
                 return $this->__handler->lPush($target_queue_name, $msg);
             });
             if ($ret) {
-                echo 'push to ' . $target_queue_name . '; data: ' . $msg;
                 return true;
             }
             return false;

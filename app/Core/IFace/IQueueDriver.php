@@ -34,6 +34,13 @@ interface IQueueDriver {
     public function size(): int;
 
     /**
+     * 获取指定队列的长度
+     * @param string $queue_name
+     * @return int
+     */
+    public function getQueueSize(string $queue_name): int;
+
+    /**
      * 从队列中弹出一条消息
      * @return IQueueMessage 没有数据时返回NULL
      */

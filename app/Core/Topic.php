@@ -12,18 +12,18 @@ use Gino\Jobs\Core\Queue\Queue;
 class Topic {
 
     private $__topic_name;          //主题名称
-    private $__config          = [];
-    private $__min_workers     = 1;     //最少进程数
-    private $__max_workers     = 1;     //最大进程数
+    private $__config      = [];
+    private $__min_workers = 1;     //最少进程数
+    private $__max_workers = 1;     //最大进程数
     private $__action;              //任务类
-    private $__workers         = [];    //子进程数组
+    private $__workers     = [];    //子进程数组
 
     public function __construct(array $topic_info) {
-        $this->__config                          = $topic_info;
-        $this->__min_workers                     = $topic_info['min_workers'] ?? 1;
-        $this->__max_workers                     = $topic_info['max_workers'] ?? 1;
-        $this->__topic_name                      = $topic_info['name'];
-        $this->__action                          = $topic_info['action'];
+        $this->__config      = $topic_info;
+        $this->__min_workers = $topic_info['min_workers'] ?? 1;
+        $this->__max_workers = $topic_info['max_workers'] ?? 1;
+        $this->__topic_name  = $topic_info['name'];
+        $this->__action      = $topic_info['action'];
     }
 
     /**
@@ -83,7 +83,7 @@ class Topic {
      */
     public function getQueueSize() {
         $queue = Queue::getQueue($this, false); //非消费者队列
-        return $queue->size();
+        return $queue->getQueueSize($this->__topic_name);
     }
 
     /**

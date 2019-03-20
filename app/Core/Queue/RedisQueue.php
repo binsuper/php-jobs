@@ -103,6 +103,25 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
     }
 
     /**
+     * 获取指定队列的长度
+     * @param string $queue_name
+     * @return int
+     */
+    public function getQueueSize(string $queue_name): int {
+        try {
+            $len = $this->__command(function() use($queue_name) {
+                return $this->__handler->lLen($queue_name);
+            });
+            if (!$len) {
+                return 0;
+            }
+            return $len ?: 0;
+        } catch (\Exception $ex) {
+            return 0;
+        }
+    }
+
+    /**
      * 执行命令
      * @param callable $callback
      * @return mixed
@@ -315,7 +334,10 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
             'payload' => $msg,
             'delay'   => $target_delay
                 ], JSON_UNESCAPED_UNICODE);
-        $delay_queue  = $this->__queue_name . '#' . $target_slot;
+        if (!$data) { //数据错误
+            return false;
+        }
+        $delay_queue = $this->__queue_name . '#' . $target_slot;
         return $this->pushTarget($delay_queue, $data) ? true : false;
     }
 

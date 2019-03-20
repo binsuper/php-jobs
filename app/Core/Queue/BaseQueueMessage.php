@@ -32,7 +32,7 @@ abstract class BaseQueueMessage implements IQueueMessage {
         }
         $ret = $this->_ack();
         if ($ret) {
-            $this->__feedback = true;
+            $this->__feedback = self::FB_ACK;
         }
         return $ret;
     }
@@ -46,9 +46,25 @@ abstract class BaseQueueMessage implements IQueueMessage {
         }
         $ret = $this->_reject($requeue);
         if ($ret) {
-            $this->__feedback = true;
+            $this->__feedback = self::FB_REJECT;
         }
         return $ret;
+    }
+
+    /**
+     * 是否已正确应答消息
+     * @return bool
+     */
+    public function isAck(): bool {
+        return $this->__feedback === self::FB_ACK;
+    }
+
+    /**
+     * 是否已拒绝消息
+     * @return bool
+     */
+    public function isReject(): bool {
+        return $this->__feedback === self::FB_REJECT;
     }
 
     /**

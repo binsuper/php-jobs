@@ -7,6 +7,7 @@ use Gino\Jobs\Core\IFace\IConsumer;
 use Gino\Jobs\Core\Queue\Queue;
 use Gino\Jobs\Core\Logger;
 use \Gino\Jobs\Core\Utils;
+use Gino\Jobs\Core\IFace\IQueueDelay;
 
 /**
  * 分派延时队列任务
@@ -38,12 +39,19 @@ class RedisDelayDeliver implements IConsumer {
             }
             //投递到延时队列
             $queue = Queue::getDelayQueue();
+            if (!($queue instanceof IQueueDelay)) { //不支持延时队列
+                $msg->reject(false);
+                return false;
+            }
             if (!$queue->pushDelay($data['target'], $data['payload'], intval($data['delay']))) {
                 $msg->reject(true);
                 return false;
             }
+            $msg->ack();
         } catch (\Throwable $ex) {
             Utils::catchError($logger, $ex);
+            $msg->reject(true);
+            return false;
         }
         return true;
     }

@@ -23,7 +23,7 @@ class Queue {
      * 获取队列
      * @param Topic $topic
      * @param bool $is_consume 设置是否消费队列, 默认为true
-     * @return IQueueDriver|IQueueProducer|IQueueDelay 失败返回false
+     * @return IQueueDriver|IQueueProducer 失败返回false
      */
     public static function getQueue(Topic $topic, bool $is_consume = true) {
         $config                = Config::getConfig('queue');
@@ -53,7 +53,7 @@ class Queue {
 
     /**
      * 获取延时队列
-     * @return IQueueProducer|IQueueDelay 失败返回false
+     * @return IQueueDriver|IQueueProducer|IQueueDelay 失败返回false
      * @throws \Exception
      */
     public static function getDelayQueue() {
@@ -67,6 +67,13 @@ class Queue {
         }
         $key = md5($pid . $class . serialize($config) . 'delay');
         if (!isset(static::$__instance[$key]) || !is_object(static::$__instance[$key])) {
+            //判断是否实现了延时任务接口
+            $refection = new \ReflectionClass($class);
+            if (!$refection->implementsInterface(IQueueDelay::class)) {
+                return false;
+            }
+            unset($refection);
+            //生成实例
             $last_ex = null;
             for ($i = 0; $i != 3; $i++) {
                 try {

@@ -30,6 +30,18 @@ interface IQueueMessage {
     public function reject(bool $requeue): bool;
 
     /**
+     * 是否已正确应答消息
+     * @return bool
+     */
+    public function isAck(): bool;
+
+    /**
+     * 是否已拒绝消息
+     * @return bool
+     */
+    public function isReject(): bool;
+
+    /**
      * 获取队列名称
      */
     public function getQueueName(): string;

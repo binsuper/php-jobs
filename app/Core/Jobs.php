@@ -26,6 +26,24 @@ class Jobs {
     private $__done_count = 0;
 
     /**
+     * 失败的任务数
+     * @var int 
+     */
+    private $__failed_count = 0;
+
+    /**
+     * 正确应答的任务数
+     * @var int 
+     */
+    private $__ack_count = 0;
+
+    /**
+     * 拒绝的任务数
+     * @var int 
+     */
+    private $__reject_count = 0;
+
+    /**
      *
      * @var IJob
      */
@@ -58,10 +76,31 @@ class Jobs {
     }
 
     /**
-     * 得到以已处理的任务数
+     * 处理成功的任务数
      */
     public function doneCount() {
         return $this->__done_count;
+    }
+
+    /**
+     * 处理失败的任务数
+     */
+    public function failedCount() {
+        return $this->__failed_count;
+    }
+
+    /**
+     * 正确应答的消息数
+     */
+    public function ackCount() {
+        return $this->__ack_count;
+    }
+
+    /**
+     * 拒绝的消息数
+     */
+    public function rejectCount() {
+        return $this->__reject_count;
     }
 
     /**
@@ -94,10 +133,18 @@ class Jobs {
                 $this->__done_count++;
                 $this->__last_busy_time = microtime(true);
                 $this->__cost_time      = bcadd($this->__cost_time, bcsub(microtime(true), $before_time, 10), 10);
+            } else {
+                $this->__failed_count++;
+            }
+            if ($msg->isAck()) {
+                $this->__ack_count++;
+            } else {
+                $this->__reject_count++;
             }
         } catch (\Throwable $ex) {
             //消费时发生错误
             Utils::catchError(Logger::getLogger(), $ex);
+            $this->__failed_count++;
         }
     }
 

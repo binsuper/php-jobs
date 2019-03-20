@@ -293,6 +293,9 @@ class Process {
                                 'type'      => $worker->getType(), //子进程类型
                                 'status'    => $job->idleTime() > 30 ? 'idle' : 'running',
                                 'done'      => $job->doneCount(), //已完成的任务数
+                                'failed'    => $job->failedCount(), //拒绝的任务数量
+                                'ack'       => $job->ackCount(), //正确应答的消息数量
+                                'reject'    => $job->rejectCount(), //拒绝的消息数量
                                 'avg_time'  => $job->avgTime(), //任务执行平均时长
                                 'idle_time' => intval($job->idleTime()) . 's', //已闲置的时长
                             ];
@@ -369,8 +372,7 @@ class Process {
 
         //进程状态信息
         \Swoole\Process::signal(SIGUSR2, function($signo) {
-            $status = $this->_saveMasterStatus();
-            // echo $status;
+            $this->_saveMasterStatus();
         });
 
         //动态进程管理
@@ -437,6 +439,11 @@ class Process {
             @\Swoole\Process::kill($this->__pid, SIGALRM);
         });
 
+        //每10分钟自动保存当前的状态信息
+        \Swoole\Timer::tick(600000, function() {
+            @\Swoole\Process::kill($this->__pid, SIGUSR2);
+        });
+
         //处理延迟任务
         if ($this->__delay_queue_name) {
             \Swoole\Timer::tick(1000, function($timer_id) {
@@ -445,9 +452,20 @@ class Process {
                         \Swoole\Timer::clear($timer_id);
                         return;
                     }
-                    $queue = Queue\Queue::getDelayQueue();
+                    try {
+                        $queue = Queue\Queue::getDelayQueue();
+                    } catch (\Throwable $ex) {
+                        \Swoole\Timer::clear($timer_id);
+                        return;
+                    }
+                    if (!$queue) {
+                        \Swoole\Timer::clear($timer_id);
+                        return;
+                    }
                     if (!($queue instanceof IQueueDelay)) { //不支持延迟队列
                         \Swoole\Timer::clear($timer_id);
+                        $queue->close();
+                        unset($queue);
                         return;
                     }
                     $queue->scanDelayQueue(function(DelayMessage $msg) use($queue) {
@@ -563,17 +581,30 @@ class Process {
         $str .= "master_pid: \t\t" . $this->__pid . PHP_EOL;
         $str .= "master_status: \t\t" . $this->__status . PHP_EOL;
         $str .= "woker_num: \t\t" . count($this->__workers) . PHP_EOL;
+
+        if ($this->__delay_queue_name) {
+            $queue = Queue\Queue::getDelayQueue();
+            if ($queue) {
+                $str .= PHP_EOL . '#queue' . PHP_EOL;
+                $str .= "delay_count: \t\t" . $queue->getDelayQueueSize() . PHP_EOL;
+            }
+        }
         //header
         $str .= PHP_EOL . '#worker' . PHP_EOL;
-        $str .= ' --------------------------------------------------------------------------------------------------------------------------' . PHP_EOL;
-        $str .= ' ' . Utils::formatTablePrint(['Pid', 'Topic', 'Type', 'Queue', 'Status', 'Runtime', 'Idletime', 'Done', 'AvgTime', 'Now']) . PHP_EOL;
-        $str .= ' --------------------------------------------------------------------------------------------------------------------------' . PHP_EOL;
+        $str .= ' --------------------------------------------------------------------------------------------------------------------------------------------------------------' . PHP_EOL;
+        $str .= ' ' . Utils::formatTablePrint(['Pid', 'Topic', 'Type', 'Queue', 'Status', 'Runtime', 'Idletime', 'AvgTime', 'Done', 'Failed', 'Ack', 'Reject', 'Now']) . PHP_EOL;
+        $str .= ' --------------------------------------------------------------------------------------------------------------------------------------------------------------' . PHP_EOL;
         //子进程的信息
         foreach ($this->__workers as $pid => $worker) {
             try {
                 $info = $this->_readWorkerStatus($pid);
             } catch (\Throwable $ex) {
-                $info = false;
+                $info        = [];
+                $info['pid'] = $pid;
+                if ($worker->getTopic()) {
+                    $info['topic'] = $worker->getTopic()->getName();
+                }
+                $info['type'] = $worker->getType();
             }
             if ($info) {
                 $str .= ' ' . Utils::formatTablePrint([
@@ -584,8 +615,11 @@ class Process {
                             $info['status'] ?? '-',
                             $info['duration'] ?? '-',
                             $info['idle_time'] ?? '-',
-                            $info['done'] ?? '-',
                             $info['avg_time'] ?? '-',
+                            $info['done'] ?? '-',
+                            $info['failed'] ?? '-',
+                            $info['ack'] ?? '-',
+                            $info['reject'] ?? '-',
                             $info['now'] ?? '-',
                         ]) . PHP_EOL;
             }

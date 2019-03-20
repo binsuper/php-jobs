@@ -22,19 +22,23 @@ class RedisProducer {
     /**
      * 设置消息体
      * @param string $body
+     * @return $this
      */
     public function setBody(string $body) {
         $this->_payload = $body;
+        return $this;
     }
 
     /**
      * 延迟执行
-     * @param int $second
-     * @param string $delay_queue
+     * @param int $second 时间，单位秒
+     * @param string $delay_queue 延时队列名称
+     * @return $this
      */
     public function delay(int $second, string $delay_queue) {
-        $this->_delay_queue = $second ?: 1;
+        $this->_delay_time = $second ?: 1;
         $this->_delay_queue = $delay_queue;
+        return $this;
     }
 
     /**
@@ -45,7 +49,7 @@ class RedisProducer {
         if ($this->_delay_time == 0) {
             return $this->_target_job;
         } else {
-            return $this->delay_queue;
+            return $this->_delay_queue;
         }
     }
 

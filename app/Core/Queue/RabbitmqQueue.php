@@ -101,7 +101,7 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
     public static function getConnection(array $config, string $queue_name, array $more_config = []) {
         $exchange_name = $more_config['exchange'] ?? '';
         if (empty($exchange_name)) {
-            throw new Exception('exchange must be set');
+            throw new \Exception('exchange must be set');
         }
         return new self($config, $queue_name, $exchange_name);
     }
@@ -300,6 +300,30 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
                     throw new ConnectionException();
                 }
                 return $this->__channel->queue_declare($this->__queue_name, true);
+            });
+            if (!$declare_info) {
+                return 0;
+            }
+            $message_count = $declare_info[1] ?? 0;
+            return $message_count;
+        } catch (\Exception $ex) {
+            return 0;
+        }
+    }
+
+    /**
+     * 获取指定队列的长度
+     * @param string $queue_name
+     * @return int
+     */
+    public function getQueueSize(string $queue_name): int {
+        try {
+            $queue_name   = $this->__exchange_name . '.' . $queue_name;
+            $declare_info = $this->__command(function() use($queue_name) {
+                if (!$this->__channel) {
+                    throw new ConnectionException();
+                }
+                return $this->__channel->queue_declare($queue_name, true);
             });
             if (!$declare_info) {
                 return 0;

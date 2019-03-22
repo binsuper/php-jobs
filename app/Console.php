@@ -14,6 +14,8 @@ use Gino\Jobs\Core\Process;
 class Console {
 
     protected $_logger;
+    private $__run_opts = [];
+    private $__run_args = [];
 
     public function __construct(array $config) {
         //检测配置信息
@@ -39,20 +41,29 @@ class Console {
     public function run() {
 
         if (!extension_loaded('swoole')) {
-            die('I need swoole(php-extension)！！！');
+            //die('I need swoole(php-extension)！！！');
         }
 
+        //解析参数
         global $argv;
-        $command_args = array_slice($argv, 1);
-        $act          = $command_args[0] ?? 'help';
+        $command_args     = array_slice($argv, 1);
+        $this->__run_opts = getopt('', ['no-delay']) ?: []; //启动配置项
+        foreach ($command_args as $arg) {
+            if ($arg[0] === '-') {
+                continue;
+            }
+            $this->__run_args[] = $arg;
+        }
+        $act = $this->__run_args[0] ?? 'help';
 
+        //动作
         switch ($act) {
             case 'help': //打印帮助信息
                 $this->printHelpMessage();
                 $this->_logger->flush();
                 break;
             case 'start': //开始运行
-                $this->start();
+                $this->start($this->__run_opts);
                 break;
             case 'stop': //停止运行
                 $this->stop();
@@ -82,15 +93,16 @@ class Console {
 {##}  command [options] [arguments]
 
 {#y}Options:
-{##}
+{#g}  --no-delay        {##}disable delay jobs
+
 {#y}Available commands:
-{#g}  help          {##}displays help message
-{#g}  start         {##}start the program
-{#g}  stop          {##}stop the program
-{#g}  restart       {##}restart the program
-{#g}  status        {##}show status
-{#g}  zombie        {##}try killing the zombie process
-{#g}  check         {##}check the configuration
+{#g}  help              {##}displays help message
+{#g}  start             {##}start the program
+{#g}  stop              {##}stop the program
+{#g}  restart           {##}restart the program
+{#g}  status            {##}show status
+{#g}  zombie            {##}try killing the zombie process
+{#g}  check             {##}check the configuration
 
 HELP;
         $rep = [
@@ -104,10 +116,13 @@ HELP;
     /**
      * 启动进程
      */
-    public function start() {
+    public function start(array $run_opts = []) {
         $this->checkConfig();
         $master_process = new Process();
-        $master_process->start();
+        if (isset($run_opts['no-delay'])) {
+            $master_process->noDelay();
+        }
+        $master_process->start($run_opts);
     }
 
     /**
@@ -139,11 +154,15 @@ HELP;
      * 重启进程
      */
     public function restart() {
+        //获取关闭前的配置
+        $master_process = new Process();
+        $run_opt        = $master_process->getMasterInfo('options') ?: [];
+        //重启
         if ($this->stop()) {
             while (!$this->stop(true)) {
                 sleep(1);
             }
-            $this->start();
+            $this->start($run_opt);
         }
     }
 
@@ -212,7 +231,7 @@ HELP;
         }
         if (@\Swoole\Process::kill($pid, SIGUSR2)) {
             $dir = Config::getConfig('process', 'data_dir');
-            echo 'program status was updated; detail in the file ' . $dir . DIRECTORY_SEPARATOR . 'status.info';
+            echo 'program status was updated; detail in the file ' . $dir . DIRECTORY_SEPARATOR . 'status.info' . PHP_EOL;
         }
     }
 

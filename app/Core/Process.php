@@ -66,19 +66,30 @@ class Process {
      * @var string
      */
     protected $_processName;
-    private $__begin_time;
+
+    /**
+     * 记录进程开始时间
+     * @var int 
+     */
+    private $__begin_time = 0;
 
     /**
      * 延迟队列的名称
      * @var string 
      */
-    private $__delay_queue_name;
+    private $__delay_queue_name = '';
 
     /**
      * 延迟队列的执行索引
      * @var int
      */
     private $__roll_slot = 0;
+
+    /**
+     * 是否允许延时队列
+     * @var bool 
+     */
+    private $__opt_delay_enable = false;
 
     public function __construct() {
         $config = Config::getConfig('process');
@@ -100,12 +111,18 @@ class Process {
         $this->__delay_queue_name  = Config::getConfig('queue', 'delay_queue_name', '');
         Utils::mkdir($this->__pid_dir);
         Utils::mkdir($this->__worker_info_dir);
+
+        if ($this->__delay_queue_name) {
+            $this->__opt_delay_enable = true;
+        }
     }
 
     /**
      * 初始化
+     * @param array $run_opt 运行时配置
+     * @throws \RuntimeException
      */
-    protected function _init() {
+    protected function _init(array $run_opt = []) {
         //判断进程是否正在运行
         if (file_exists($this->__pid_file)) {
             $pid = file_get_contents($this->__pid_file);
@@ -130,8 +147,9 @@ class Process {
         $this->__status = self::STATUS_RUNNING;
 
         $data = [
-            'pid'    => $this->__pid,
-            'status' => $this->__status
+            'pid'     => $this->__pid,
+            'status'  => $this->__status,
+            'options' => $run_opt
         ];
 
         $this->__setPidFile();
@@ -210,10 +228,18 @@ class Process {
     }
 
     /**
-     * 启动进程
+     * 关闭延时队列功能
      */
-    public function start() {
-        $this->_init();
+    public function noDelay() {
+        $this->__opt_delay_enable = false;
+    }
+
+    /**
+     * 启动进程
+     * @param array $run_opts 运行时的配置
+     */
+    public function start(array $run_opts = []) {
+        $this->_init($run_opts);
         $this->_registSignal();
         $this->_registTopics();
         $this->_registTimer();
@@ -226,6 +252,11 @@ class Process {
         $topics_config = Config::getConfig('topics');
         foreach ($topics_config as $topic_info) {
             $topic = new Topic($topic_info);
+            if (!$this->__opt_delay_enable) {
+                if ($topic->getName() === $this->__delay_queue_name) {
+                    continue;
+                }
+            }
             $topic->execStatic(function() use($topic) {
                 if (self::STATUS_RUNNING !== $this->__status) {
                     return;
@@ -445,7 +476,7 @@ class Process {
         });
 
         //处理延迟任务
-        if ($this->__delay_queue_name) {
+        if ($this->__opt_delay_enable) {
             \Swoole\Timer::tick(1000, function($timer_id) {
                 try {
                     if (empty($this->__topics)) {
@@ -582,7 +613,7 @@ class Process {
         $str .= "master_status: \t\t" . $this->__status . PHP_EOL;
         $str .= "woker_num: \t\t" . count($this->__workers) . PHP_EOL;
 
-        if ($this->__delay_queue_name) {
+        if ($this->__opt_delay_enable) {
             $queue = Queue\Queue::getDelayQueue();
             if ($queue) {
                 $str .= PHP_EOL . '#queue' . PHP_EOL;

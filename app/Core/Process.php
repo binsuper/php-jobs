@@ -91,6 +91,12 @@ class Process {
      */
     private $__opt_delay_enable = false;
 
+    /**
+     * 消息通知对象
+     * @var array
+     */
+    private $__message_notifier = [];
+
     public function __construct() {
         $config = Config::getConfig('process');
         if (empty($config) || empty($config['data_dir'])) {
@@ -114,6 +120,17 @@ class Process {
 
         if ($this->__delay_queue_name) {
             $this->__opt_delay_enable = true;
+        }
+
+        //消息模块
+        $notifier = Config::getConfig('message', '', []);
+        foreach ($notifier as $node) {
+            $class  = $node['class'] ?? false;
+            $params = $node['params'] ?? [];
+            if (!$class) {
+                continue;
+            }
+            $this->__message_notifier[] = new $class($params);
         }
     }
 
@@ -306,8 +323,19 @@ class Process {
             do {
                 //每100毫秒检测一次主进程的运行状态
                 if (microtime(true) - ($this->__status_updatetime ?? 0) > 0.01) {
-                    $this->__status            = $this->getMasterInfo('status');
+                    $data                      = $this->getMasterInfo();
+                    $this->__status            = $data['status'];
                     $this->__status_updatetime = microtime(true);
+                    //flush log
+                    go(function() use($data) {
+                        $flush = $data['flush'] ?? false;
+                        if (false !== $flush && time() - $flush <= 30) {
+                            if (!isset($this->__flush_time) || $this->__flush_time < $flush) {
+                                $this->__flush_time = $flush;
+                                $this->_logger->flush();
+                            }
+                        }
+                    });
                 }
                 try {
                     //执行任务
@@ -507,6 +535,63 @@ class Process {
                 }
             });
         }
+
+        //定期检测
+        //异常时通知消息
+        if (!empty($this->__message_notifier)) {
+            \Swoole\Timer::tick(60000, function() {
+                $except_msg = [];
+                //子进程的信息
+                foreach ($this->__workers as $pid => $worker) {
+                    try {
+                        $info = $this->_readWorkerStatus($pid);
+                    } catch (\Throwable $ex) {
+                        continue;
+                    }
+                    if ($info) {
+                        $topic_name = $worker->getTopic()->getName();
+                        if (!isset($except_msg[$topic_name])) {
+                            $queue_size = $worker->getTopic()->getQueueSize() ?: 0;
+                            if ($queue_size >= $this->__queue_health_size) { //不健康了哦
+                                $except_msg[$topic_name]['queue_size'] = $queue_size;
+                                $except_msg[$topic_name]['avg_time']   = $info['avg_time'];
+                            }
+                        }
+                        if ($info['failed'] > 5 || $info['reject'] > 5) {
+                            $except_msg[$topic_name]['failed'] = ($except_msg[$topic_name]['failed'] ?? 0) + $info['failed'];
+                            $except_msg[$topic_name]['reject'] = ($except_msg[$topic_name]['reject'] ?? 0) + $info['reject'];
+                        }
+                        if (isset($except_msg[$topic_name])) {
+                            $except_msg[$topic_name]['topic'] = $topic_name;
+                        }
+                    }
+                }
+                //通知
+                if (!empty($except_msg)) {
+                    foreach ($except_msg as $node) {
+                        $topic_name = $node['topic'];
+                        $queue_size = $node['queue_size'] ?? false;
+                        $avg_time   = $node['avg_time'] ?? 0;
+                        $failed     = $node['failed'] ?? 0;
+                        $reject     = $node['reject'] ?? 0;
+                        
+                        $msg = '时间：' . date('Y-m-d H:i:s') . PHP_EOL;
+                        $msg .= "进程：{$this->_processName}" . PHP_EOL;
+                        $msg .= "主题：{$topic_name}" . PHP_EOL;
+                        $msg .= '异常：' . PHP_EOL;
+                        if ($queue_size) {
+                            $msg .= "\t• 消息积压太多了（数量：{$queue_size}), 平均处理时长：{$avg_time}" . PHP_EOL;
+                        }
+                        if ($failed > 0 || $reject > 0) {
+                            $msg .= "\t• 消息处理异常，失败(Failed)的数量：{$failed}，拒绝(Reject)的数量：{$reject}" . PHP_EOL;
+                        }
+                        foreach ($this->__message_notifier as $notifier) {
+                            $notifier->notify($msg);
+                        }
+                    }
+                }
+            });
+        }
     }
 
     /**
@@ -699,6 +784,15 @@ class Process {
             return false;
         }
         return json_decode($data, true);
+    }
+
+    /**
+     * 刷新日志
+     */
+    public function flush() {
+        $data          = $this->getMasterInfo();
+        $data['flush'] = time();
+        $this->__setMasterInfo($data);
     }
 
 }

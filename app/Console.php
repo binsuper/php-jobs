@@ -80,6 +80,9 @@ class Console {
             case 'check': //检查配置是否正确
                 $this->checkConfig();
                 break;
+            case 'flush': //刷新日志
+                $this->flush();
+                break;
         }
     }
 
@@ -103,6 +106,7 @@ class Console {
 {#g}  status            {##}show status
 {#g}  zombie            {##}try killing the zombie process
 {#g}  check             {##}check the configuration
+{#g}  flush             {##}flush log to log_file
 
 HELP;
         $rep = [
@@ -233,6 +237,15 @@ HELP;
             $dir = Config::getConfig('process', 'data_dir');
             echo 'program status was updated; detail in the file ' . $dir . DIRECTORY_SEPARATOR . 'status.info' . PHP_EOL;
         }
+    }
+
+    /**
+     * 刷新日志
+     */
+    public function flush() {
+        $master_process = new Process();
+        $master_process->flush();
+        echo 'flush log...' . PHP_EOL;
     }
 
 }

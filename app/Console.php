@@ -161,12 +161,18 @@ HELP;
         //获取关闭前的配置
         $master_process = new Process();
         $run_opt        = $master_process->getMasterInfo('options') ?: [];
-        //重启
-        if ($this->stop()) {
-            while (!$this->stop(true)) {
-                sleep(1);
-            }
+        $pid            = $master_process->getMasterInfo('pid');
+        //如果没有启动，则启动,或者重启
+        if (!$pid || !\Swoole\Process::kill($pid, 0)) {
             $this->start($run_opt);
+        } else {
+            //重启
+            if ($this->stop()) {
+                while (!$this->stop(true)) {
+                    sleep(1);
+                }
+                $this->start($run_opt);
+            }
         }
     }
 

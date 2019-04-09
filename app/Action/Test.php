@@ -19,7 +19,7 @@ class Test implements IConsumer {
      * @return bool 执行成功返回true, 执行失败返回false
      */
     public function consume(IQueueMessage $msg): bool {
-        usleep(10000);
+        //usleep(10000);
         Logger::getLogger()->log('receive msg： ' . $msg->getBody());
         if (rand(0, 2) == 2) {
             return false;

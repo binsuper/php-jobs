@@ -100,6 +100,7 @@ class Topic {
      */
     public function freeWorker(Worker $worker) {
         unset($this->__workers[$worker->getPID()]);
+        $this->__workers = array_slice($this->__workers, 0, null, true);
     }
 
     /**

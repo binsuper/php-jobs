@@ -89,5 +89,5 @@ class Queue {
         }
         return static::$__instance[$key];
     }
-
+    
 }

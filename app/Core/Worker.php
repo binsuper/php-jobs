@@ -46,15 +46,17 @@ class Worker {
         $this->__child_type = $child_type;
     }
 
+    public function __destruct() {
+        $this->__process = null;
+    }
+
     /**
      * 设置进程启动函数
      * 
      * @param callable $action 进程启动后执行的函数
      */
     public function action($action) {
-        $this->__process = new \Swoole\Process(function($process) use($action) {
-            call_user_func($action, $this);
-        });
+        $this->__process = new \Swoole\Process($action);
     }
 
     /**
@@ -77,6 +79,7 @@ class Worker {
     public function exitWorker() {
         $this->free();
         $this->__process->exit();
+        $this->__process = null;
     }
 
     /**
@@ -85,6 +88,7 @@ class Worker {
     public function free() {
         if ($this->__topic) { //卸载
             $this->__topic->freeWorker($this);
+            $this->__topic = null;
         }
     }
 

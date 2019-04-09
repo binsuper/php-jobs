@@ -213,6 +213,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
     public function close() {
         if ($this->__handler) {
             $this->__handler->close();
+            $this->__handler = null;
         }
     }
 

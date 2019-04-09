@@ -220,6 +220,11 @@ HELP;
      */
     public function killZombie() {
         $master_process = new Process();
+        $pid            = $master_process->getMasterInfo('pid');
+        if ($pid && \Swoole\Process::kill($pid, 0)) {
+            echo 'program is running, can not kill zombie process' . PHP_EOL;
+            return;
+        }
         $master_process->waitWorkers();
     }
 

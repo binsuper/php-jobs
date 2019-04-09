@@ -301,7 +301,7 @@ class Process {
     protected function _forkWorker(Topic $topic, string $child_type) {
         $worker = new Worker($child_type);
         $worker->setTopic($topic);
-        $worker->action(function(Worker $worker) use($topic) {
+        $worker->action(function() use($worker, $topic) {
             //运行内容
             $this->_checkMpid($worker);
             $this->__setProcessName('worker' . $this->_processName);
@@ -391,11 +391,11 @@ class Process {
                     Utils::catchError($this->_logger, $ex);
                 }
             } while ($where);
-            $this->_logger->flush();
             unset($job);
-            unset($this->__status_updatetime);
             $this->_saveWorkerStatus([], true);
+            $this->_logger->flush();
         });
+        $after = memory_get_usage(false);
         try {
             $pid = $worker->start();
             if ($pid) {
@@ -443,9 +443,10 @@ class Process {
         \Swoole\Process::signal(SIGCHLD, function($signo) {
             try {
                 while ($ret = \Swoole\Process::wait(false)) { //$ret = array('code' => 0, 'pid' => 15001, 'signal' => 15);
-                    $pid    = $ret['pid'];
-                    $worker = $this->__workers[$pid];
+                    $pid             = $ret['pid'];
+                    $worker          = $this->__workers[$pid];
                     unset($this->__workers[$pid]);
+                    $this->__workers = array_slice($this->__workers, 0, null, true);
 
                     //主进程正常运行且子进程是静态类型，则重启该进程
                     if ($this->__status == self::STATUS_RUNNING && $worker && $worker->getType() === Worker::TYPE_STATIC) {
@@ -468,17 +469,16 @@ class Process {
                     } else {
                         $this->_logger->log("worker exit, SIGNAL={$signo}, PID={$pid}, TYPE={$worker->getType()}", Logger::LEVEL_INFO, $this->__process_log_file, true);
                     }
-
                     //释放worker资源
                     if ($worker) {
                         $worker->free();
                     }
-
                     //主进程状态为WAIT且所有子进程退出, 则主进程安全退出
                     if (empty($this->__workers) && $this->__status == self::STATUS_WAIT) {
                         $this->_logger->log('all workers exit, master exit security', Logger::LEVEL_INFO, $this->__process_log_file);
                         $this->_exit();
                     }
+                    $after = memory_get_usage(false);
                 }
             } catch (\Exception $ex) {
                 Utils::catchError($this->_logger, $ex);
@@ -530,6 +530,7 @@ class Process {
                     $queue->scanDelayQueue(function(DelayMessage $msg) use($queue) {
                         return $queue->pushTarget($msg->getTargetName(), $msg->getPayload()) ? true : false;
                     });
+                    unset($queue);
                 } catch (\Throwable $ex) {
                     Utils::catchError($this->_logger, $ex);
                 }
@@ -539,8 +540,16 @@ class Process {
         //定期检测
         //异常时通知消息
         if (!empty($this->__message_notifier)) {
-            \Swoole\Timer::tick(60000, function() {
+            $except_tmp = [];
+            \Swoole\Timer::tick(60000, function() use(&$except_tmp) {
                 $except_msg = [];
+                //清理不存在进程
+                $clear_keys = array_diff_key($this->__workers, $except_tmp);
+                foreach ($clear_keys as $key => $_) {
+                    if (isset($except_tmp)) {
+                        unset($except_tmp[$key]);
+                    }
+                }
                 //子进程的信息
                 foreach ($this->__workers as $pid => $worker) {
                     try {
@@ -557,9 +566,12 @@ class Process {
                                 $except_msg[$topic_name]['avg_time']   = $info['avg_time'];
                             }
                         }
-                        if ($info['failed'] > 5 || $info['reject'] > 5) {
+                        $health_failed = ($except_tmp[$pid]['failed'] ?? 0) + 5;
+                        $health_reject = ($except_tmp[$pid]['reject'] ?? 0) + 5;
+                        if ($info['failed'] > $health_failed || $info['reject'] > $health_reject) {
                             $except_msg[$topic_name]['failed'] = ($except_msg[$topic_name]['failed'] ?? 0) + $info['failed'];
                             $except_msg[$topic_name]['reject'] = ($except_msg[$topic_name]['reject'] ?? 0) + $info['reject'];
+                            $except_tmp[$pid]                  = ['failed' => $info['failed'] ?? 0, 'reject' => $info['reject'] ?? 0];
                         }
                         if (isset($except_msg[$topic_name])) {
                             $except_msg[$topic_name]['topic'] = $topic_name;
@@ -574,7 +586,7 @@ class Process {
                         $avg_time   = $node['avg_time'] ?? 0;
                         $failed     = $node['failed'] ?? 0;
                         $reject     = $node['reject'] ?? 0;
-                        
+
                         $msg = '时间：' . date('Y-m-d H:i:s') . PHP_EOL;
                         $msg .= "进程：{$this->_processName}" . PHP_EOL;
                         $msg .= "主题：{$topic_name}" . PHP_EOL;
@@ -586,7 +598,9 @@ class Process {
                             $msg .= "\t• 消息处理异常，失败(Failed)的数量：{$failed}，拒绝(Reject)的数量：{$reject}" . PHP_EOL;
                         }
                         foreach ($this->__message_notifier as $notifier) {
-                            $notifier->notify($msg);
+                            go(function() use($notifier, $msg) {
+                                $notifier->notify($msg);
+                            });
                         }
                     }
                 }
@@ -649,7 +663,7 @@ class Process {
         $this->__setMasterInfo($data);
         $this->_logger->log('wait workers quit', Logger::LEVEL_INFO, $this->__process_log_file);
         //特殊情况下，此时所有子进程全部都已经结束，则直接安全退出
-        if (empty($this->__workers)) {
+        if (empty($this->__workers) && getmypid() == ($data['pid'] ?? -1)) {
             $this->_exit();
         }
     }

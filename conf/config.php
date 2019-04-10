@@ -8,6 +8,7 @@ return array(
     ],
     //进程模块
     'process' => [
+        'user'              => 'www:www', //启动用户
         'data_dir'          => GINO_JOBS_ROOT_PATH . '/var/data', //数据目录
         'process_name'      => ' :php-jobs', //设置进程的名称
         'process_log_file'  => 'process.log', //进程日志文件
@@ -56,13 +57,13 @@ return array(
             'exchange'    => 'phpjob'
         ]
     ],
-    /*
-    //消息通知模块
-    'message' => [
-        [
-            'class'  => '\Gino\Jobs\Kit\Message\DingMessage',
-            'params' => ['token' => 'your code']
-        ],
-    ]
-     */
+        /*
+          //消息通知模块
+          'message' => [
+          [
+          'class'  => '\Gino\Jobs\Kit\Message\DingMessage',
+          'params' => ['token' => 'your code']
+          ],
+          ]
+         */
 );

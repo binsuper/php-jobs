@@ -32,10 +32,10 @@ class Process {
     private $__topics          = [];
 
     /**
-     * 最长执行时间(秒), 0为不限制
-     * @var int 
+     * 进程用户
+     * @var  
      */
-    private $__max_exeucte_time = 0;
+    private $__user = '';
 
     /**
      * 最大执行任务数量, 0为不限制
@@ -104,6 +104,7 @@ class Process {
         }
 
         $this->_logger             = Logger::getLogger();
+        $this->__user              = $config['user'] ?? '';
         $this->__pid_dir           = $config['data_dir'];
         $this->__pid_file          = $this->__pid_dir . DIRECTORY_SEPARATOR . $this->__pid_file;
         $this->__pid_info_file     = $this->__pid_dir . DIRECTORY_SEPARATOR . $this->__pid_info_file;
@@ -157,6 +158,39 @@ class Process {
 
         //启动进程
         \Swoole\Process::daemon(); //使当前进程蜕变为一个守护进程
+        //用户
+        if (empty($this->__user)) {
+            $user  = $group = '';
+            if (function_exists('posix_getpwuid') && function_exists('posix_getpwuid')) {
+                $uinfo = posix_getpwuid(posix_getuid());
+                $user  = $uinfo ? $uinfo['name'] : '';
+            }
+            if (function_exists('posix_getpwuid') && function_exists('posix_getgrgid')) {
+                $ginfo = posix_getgrgid(posix_getgid());
+                $group = $ginfo ? $ginfo['name'] : '';
+            }
+            $this->__user = $user . ':' . $group;
+        } else {
+            $info = explode(':', $this->__user);
+            $user = $info[0];
+            if (empty($user)) {
+                throw new \RuntimeException('user who run the process is null');
+            }
+            $group = $info[1] ?? $user;
+            if (function_exists('posix_getpwnam') && function_exists('posix_setuid')) {
+                $uinfo = posix_getpwnam($user);
+                if ($uinfo) {
+                    posix_setuid($uinfo['uid']);
+                }
+            }
+            if (function_exists('posix_getgrnam') && function_exists('posix_setgid')) {
+                $ginfo = posix_getgrnam($group);
+                if ($ginfo) {
+                    posix_setgid($ginfo['gid']);
+                }
+            }
+        }
+
         $this->__pid = getmypid();
         if (!$this->__pid) {
             throw new \RuntimeException('can not get the master PID');
@@ -697,6 +731,7 @@ class Process {
         //主进程信息
         $str = '---------------------------------------------' . $this->_processName . ' status-----------------------------------------------' . PHP_EOL;
         $str .= PHP_EOL . '#system' . PHP_EOL;
+        $str .= "user: \t\t\t" . $this->__user . PHP_EOL;
         $str .= "php_version: \t\t" . PHP_VERSION . PHP_EOL;
         $str .= "php-jobs_version: \t" . self::VERSION . PHP_EOL;
 

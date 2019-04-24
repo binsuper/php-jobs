@@ -161,11 +161,11 @@ class Process {
         //用户
         if (empty($this->__user)) {
             $user  = $group = '';
-            if (function_exists('posix_getpwuid') && function_exists('posix_getpwuid')) {
+            if (function_exists('posix_getpwuid') && function_exists('posix_getuid')) {
                 $uinfo = posix_getpwuid(posix_getuid());
                 $user  = $uinfo ? $uinfo['name'] : '';
             }
-            if (function_exists('posix_getpwuid') && function_exists('posix_getgrgid')) {
+            if (function_exists('posix_getgrgid') && function_exists('posix_getgid')) {
                 $ginfo = posix_getgrgid(posix_getgid());
                 $group = $ginfo ? $ginfo['name'] : '';
             }
@@ -177,16 +177,16 @@ class Process {
                 throw new \RuntimeException('user who run the process is null');
             }
             $group = $info[1] ?? $user;
-            if (function_exists('posix_getpwnam') && function_exists('posix_setuid')) {
-                $uinfo = posix_getpwnam($user);
-                if ($uinfo) {
-                    posix_setuid($uinfo['uid']);
-                }
-            }
             if (function_exists('posix_getgrnam') && function_exists('posix_setgid')) {
                 $ginfo = posix_getgrnam($group);
                 if ($ginfo) {
                     posix_setgid($ginfo['gid']);
+                }
+            }
+            if (function_exists('posix_getpwnam') && function_exists('posix_setuid')) {
+                $uinfo = posix_getpwnam($user);
+                if ($uinfo) {
+                    posix_setuid($uinfo['uid']);
                 }
             }
         }

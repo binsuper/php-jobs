@@ -600,8 +600,8 @@ class Process {
                                 $except_msg[$topic_name]['avg_time']   = $info['avg_time'];
                             }
                         }
-                        $health_failed = ($except_tmp[$pid]['failed'] ?? 0) + 60;
-                        $health_reject = ($except_tmp[$pid]['reject'] ?? 0) + 60;
+                        $health_failed = 60; //($except_tmp[$pid]['failed'] ?? 0) + 60;
+                        $health_reject = 60; //($except_tmp[$pid]['reject'] ?? 0) + 60;
                         if ($info['failed'] > $health_failed || $info['reject'] > $health_reject) {
                             $except_msg[$topic_name]['failed'] = ($except_msg[$topic_name]['failed'] ?? 0) + $info['failed'];
                             $except_msg[$topic_name]['reject'] = ($except_msg[$topic_name]['reject'] ?? 0) + $info['reject'];

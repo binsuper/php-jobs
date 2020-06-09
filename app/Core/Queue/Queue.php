@@ -44,7 +44,7 @@ class Queue {
                     $last_ex = $ex;
                 }
             }
-            if (!$last_ex) {
+            if ($last_ex) {
                 throw $last_ex;
             }
         }

@@ -55,7 +55,20 @@ return array(
             'name'        => 'test',
             'action'      => '\Gino\Jobs\Action\Test',
             'exchange'    => 'phpjob'
-        ]
+        ],
+		/* rabbitmq 增加死信队列
+		[
+            'min_workers' => 1, //最少的进程数
+            'max_workers' => 2, //最大的进程数
+            'name'        => Config::get('daily_queue_key'),
+            'action'      => \Jobs\DailyQueue::class,
+            'exchange'    => 'dc_data_queue',
+			// dead letter exchange
+            'dlx'         => 'dlx.dc_data_queue',
+			// dead letter routing key
+            'dlrk'        => 'dlx.' . Config::get('daily_queue_key'),
+        ],
+		*/
     ],
         /*
           //消息通知模块

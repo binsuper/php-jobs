@@ -26,16 +26,16 @@ return array(
         'pass'             => '',
         'db'               => 0,
         'delay_queue_name' => 'php-jobs-delay', //延迟队列的名称
-    /*
-      //rabiitmq
-      'class'            => '\Gino\Jobs\Core\Queue\RabbitmqQueue',
-      'host'             => '127.0.0.1',
-      'port'             => 5672,
-      'user'             => 'admin',
-      'pass'             => '123456',
-      'vhost'            => '/',
-      'qos'              => 1
-     */
+        /*
+          //rabiitmq
+          'class'            => '\Gino\Jobs\Core\Queue\RabbitmqQueue',
+          'host'             => '127.0.0.1',
+          'port'             => 5672,
+          'user'             => 'admin',
+          'pass'             => '123456',
+          'vhost'            => '/',
+          'qos'              => 1
+         */
     ],
     //任务模块
     'topics'  => [
@@ -54,29 +54,30 @@ return array(
             'max_workers' => 4, //最大的进程数
             'name'        => 'test',
             'action'      => '\Gino\Jobs\Action\Test',
-            'exchange'    => 'phpjob'
+            'exchange'    => 'phpjob',
+            'tpo'         => 100 // redis队列支持一次处理多条消息
         ],
-		/* rabbitmq 增加死信队列
-		[
+        /* rabbitmq 增加死信队列
+        [
             'min_workers' => 1, //最少的进程数
             'max_workers' => 2, //最大的进程数
             'name'        => Config::get('daily_queue_key'),
             'action'      => \Jobs\DailyQueue::class,
             'exchange'    => 'dc_data_queue',
-			// dead letter exchange
+            // dead letter exchange
             'dlx'         => 'dlx.dc_data_queue',
-			// dead letter routing key
+            // dead letter routing key
             'dlrk'        => 'dlx.' . Config::get('daily_queue_key'),
         ],
-		*/
+        */
     ],
-        /*
-          //消息通知模块
-          'message' => [
-          [
-          'class'  => '\Gino\Jobs\Kit\Message\DingMessage',
-          'params' => ['token' => 'your code']
-          ],
-          ]
-         */
+    /*
+      //消息通知模块
+      'message' => [
+      [
+      'class'  => '\Gino\Jobs\Kit\Message\DingMessage',
+      'params' => ['token' => 'your code']
+      ],
+      ]
+     */
 );

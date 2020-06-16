@@ -419,4 +419,11 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
         return $this->__queue_name;
     }
 
+    /**
+     * @inheritDoc
+     */
+    public function tpo(): int {
+        return 1;
+    }
+
 }

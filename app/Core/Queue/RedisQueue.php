@@ -12,7 +12,7 @@ use \Gino\Jobs\Core\Utils;
 use \Gino\Jobs\Core\Logger;
 
 /**
- * 
+ *
  * @author GinoHuang <binsuper@126.com>
  */
 class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
@@ -30,6 +30,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
 
     /**
      * 获取连接
+     *
      * @param array $config
      * @param string $queue_name
      * @return IQueueDriver 失败返回false
@@ -52,12 +53,13 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
         try {
             $this->close();
         } catch (\Exception $ex) {
-            
+
         }
     }
 
     /**
      * 连接Redis
+     *
      * @throws \RedisException
      */
     private function __connect() {
@@ -86,11 +88,12 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
 
     /**
      * 返回当前队列长度
+     *
      * @return int
      */
     public function size(): int {
         try {
-            $len = $this->__command(function() {
+            $len = $this->__command(function () {
                 return $this->__handler->lLen($this->__queue_name);
             });
             if (!$len) {
@@ -104,12 +107,13 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
 
     /**
      * 获取指定队列的长度
+     *
      * @param string $queue_name
      * @return int
      */
     public function getQueueSize(string $queue_name): int {
         try {
-            $len = $this->__command(function() use($queue_name) {
+            $len = $this->__command(function () use ($queue_name) {
                 return $this->__handler->lLen($queue_name);
             });
             if (!$len) {
@@ -123,6 +127,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
 
     /**
      * 执行命令
+     *
      * @param callable $callback
      * @return mixed
      */
@@ -160,11 +165,12 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
 
     /**
      * 从队列中弹出一条消息
+     *
      * @return IQueueMessage 没有数据时返回NULL
      */
     public function pop() {
         try {
-            $ret = $this->__command(function() {
+            $ret = $this->__command(function () {
                 return $this->__handler->brPop($this->__queue_name, 1);
             });
             if (empty($ret)) {
@@ -181,12 +187,13 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
 
     /**
      * 往队列中投递消息
+     *
      * @param string $body
      * @return bool
      */
     public function push(string $body): bool {
         try {
-            $ret = $this->__command(function() use($body) {
+            $ret = $this->__command(function () use ($body) {
                 return $this->__handler->lPush($this->__queue_name, $body);
             });
             if ($ret) {
@@ -200,6 +207,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
 
     /**
      * 将消息重新加入到队列中
+     *
      * @param IQueueMessage $msg
      * @return bool
      */
@@ -223,12 +231,13 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
 
     /**
      * 获取延迟队列消息的数量
+     *
      * @param string $queue
      * @return int
      */
     public function getDelayQueueSize(): int {
         try {
-            $count = $this->__command(function() {
+            $count = $this->__command(function () {
                 $slots = 60;
                 $count = 0;
                 while (--$slots >= 0) {
@@ -248,13 +257,14 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
     /**
      * 遍历延迟队列的消息
      * 如果时间到点，则将消息以参数的形式传入到回调函数中
+     *
      * @param callable $callback callback($delayMessage)
      */
     public function scanDelayQueue($callback) {
         $slot_key = $this->__queue_name . '#slot';
         try {
             if (!isset($this->delay_slot)) {
-                $this->delay_slot = $this->__command(function() use($slot_key) {
+                $this->delay_slot = $this->__command(function () use ($slot_key) {
                     return $this->__handler->get($slot_key) ?: 0;
                 });
                 $this->delay_slot = intval($this->delay_slot) % 60;
@@ -265,7 +275,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
         }
         //更新slot
         try {
-            $this->__command(function() use($slot_key) {
+            $this->__command(function () use ($slot_key) {
                 return $this->__handler->incr($slot_key);
             });
         } catch (\Throwable $ex) {
@@ -275,10 +285,10 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
         $slot             = $this->delay_slot;
         $this->delay_slot = $this->delay_slot + 1 >= 60 ? 0 : $this->delay_slot + 1;
         //协程
-        go(function() use($slot, $callback) {
+        go(function () use ($slot, $callback) {
             try {
                 $delay_queue = $this->__queue_name . '#' . $slot;
-                $count       = $this->__command(function() use($delay_queue) {
+                $count       = $this->__command(function () use ($delay_queue) {
                     return $this->__handler->lLen($delay_queue);
                 });
             } catch (\Throwable $ex) {
@@ -294,14 +304,14 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
                     $msg = new Delay\Message($body);
                     if (!$msg->onTime()) { //没到点，重回队列
                         $msg->roll();
-                        $this->__handler->lPush($delay_queue, (string) $msg);
+                        $this->__handler->lPush($delay_queue, (string)$msg);
                         continue;
                     }
                     //到点了，往目标队列投递消息
                     if (!call_user_func($callback, $msg)) {
                         //失败，回到延迟队列
                         $msg->roll();
-                        $this->__handler->lPush($delay_queue, (string) $msg);
+                        $this->__handler->lPush($delay_queue, (string)$msg);
                     }
                 } catch (\Throwable $ex) {
                     Utils::catchError(Logger::getLogger(), $ex);
@@ -312,6 +322,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
 
     /**
      * 将消息推送到延时队列
+     *
      * @param string $target_queue_name 目标队列
      * @param string $msg 消息体
      * @param int $delay 延迟时间
@@ -320,7 +331,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
     public function pushDelay(string $target_queue_name, string $msg, int $delay): bool {
         $slot_key = $this->__queue_name . '#slot';
         try {
-            $slot = $this->__command(function() use($slot_key) {
+            $slot = $this->__command(function () use ($slot_key) {
                 return $this->__handler->get($slot_key) ?: 0;
             });
         } catch (\Throwable $ex) {
@@ -334,7 +345,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
             'target'  => $target_queue_name,
             'payload' => $msg,
             'delay'   => $target_delay
-                ], JSON_UNESCAPED_UNICODE);
+        ], JSON_UNESCAPED_UNICODE);
         if (!$data) { //数据错误
             return false;
         }
@@ -344,12 +355,13 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
 
     /**
      * 将延时消息推送至目标队列
+     *
      * @param string $target_queue_name
      * @return bool
      */
     public function pushTarget(string $target_queue_name, string $msg): bool {
         try {
-            $ret = $this->__command(function() use($target_queue_name, $msg) {
+            $ret = $this->__command(function () use ($target_queue_name, $msg) {
                 return $this->__handler->lPush($target_queue_name, $msg);
             });
             if ($ret) {
@@ -360,6 +372,13 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
             Utils::catchError(Logger::getLogger(), $ex);
             return false;
         }
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function tpo(): int {
+        return 0;
     }
 
 }

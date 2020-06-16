@@ -18,16 +18,25 @@ class Topic {
     private $__action;              //任务类
     private $__workers     = [];    //子进程数组
 
+    /**
+     * 每次处理的消息个数
+     *
+     * @var int
+     */
+    private $__trans_per_operate = 1;
+
     public function __construct(array $topic_info) {
-        $this->__config      = $topic_info;
-        $this->__min_workers = $topic_info['min_workers'] ?? 1;
-        $this->__max_workers = $topic_info['max_workers'] ?? 1;
-        $this->__topic_name  = $topic_info['name'];
-        $this->__action      = $topic_info['action'];
+        $this->__config            = $topic_info;
+        $this->__min_workers       = $topic_info['min_workers'] ?? 1;
+        $this->__max_workers       = $topic_info['max_workers'] ?? 1;
+        $this->__topic_name        = $topic_info['name'];
+        $this->__action            = $topic_info['action'];
+        $this->__trans_per_operate = $topic_info['tpo'] ?? 1;
     }
 
     /**
      * 获取名称
+     *
      * @return string
      */
     public function getName() {
@@ -36,6 +45,7 @@ class Topic {
 
     /**
      * 获取配置信息
+     *
      * @return array
      */
     public function getConfig() {
@@ -44,7 +54,7 @@ class Topic {
 
     /**
      * 管理静态进程
-     * 
+     *
      * @param function $callback
      */
     public function execStatic($callback) {
@@ -56,7 +66,7 @@ class Topic {
 
     /**
      * 管理动态进程
-     * 
+     *
      * @param callable $callback
      */
     public function execDynamic($callback) {
@@ -79,6 +89,7 @@ class Topic {
 
     /**
      * 获取队里中的消息数量
+     *
      * @return int
      */
     public function getQueueSize() {
@@ -88,6 +99,7 @@ class Topic {
 
     /**
      * 挂载worker
+     *
      * @param \Gino\Jobs\Core\Worker $worker
      */
     public function mountWorker(Worker $worker) {
@@ -96,6 +108,7 @@ class Topic {
 
     /**
      * 卸载worker
+     *
      * @param \Gino\Jobs\Core\Worker $worker
      */
     public function freeWorker(Worker $worker) {
@@ -105,22 +118,33 @@ class Topic {
 
     /**
      * 生成新任务
+     *
      * @return Jobs
      */
     public function newJob() {
         $queue = Queue::getQueue($this);
         $job   = new $this->__action();
-        return new Jobs($queue, $job);
+        return new Jobs($queue, $job, $this->getTPO());
     }
 
     /**
      * 投递消息
+     *
      * @param string $msg
      * @return bool
      */
     public function pushMsg(string $msg): bool {
         $queue = Queue::getQueue($this, false); //非消费者队列
         return $queue->push($msg) ? true : false;
+    }
+
+    /**
+     * 每次消费的消息数量
+     *
+     * @return int
+     */
+    public function getTPO(): int {
+        return $this->__trans_per_operate;
     }
 
 }

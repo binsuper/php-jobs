@@ -17,15 +17,15 @@ class Logger implements ILogger {
     const LEVEL_NOTICE     = 'notice';
     const MAX_LOG_BUF_SIZE = 100; //缓冲区最大数量
 
-    private static $__instalce = [];
-    private $__log_dir         = ''; //日志目录
-    private $__log_file        = 'application.log'; //日志默认输出的文件
-    private $__log_category    = '__DEFAULT__'; //日志默认分类
-    protected $_log_buf        = []; //缓冲区
-    protected $_log_buf_size   = 0; //缓冲区日志数量
-    public $logfile_max_size   = 100; //日志文件大小限制,单位(mb)
-    public $logfile_max_count  = 5; //日志文件数量限制
-    private $__sw_locks        = []; //文件锁
+    private static $__instance = [];
+    private        $__log_dir  = ''; //日志目录
+    private        $__log_file        = 'application.log'; //日志默认输出的文件
+    private        $__log_category    = '__DEFAULT__'; //日志默认分类
+    protected      $_log_buf          = []; //缓冲区
+    protected      $_log_buf_size     = 0; //缓冲区日志数量
+    public         $logfile_max_size  = 100; //日志文件大小限制,单位(mb)
+    public         $logfile_max_count = 5; //日志文件数量限制
+    private        $__sw_locks        = []; //文件锁
 
     public function __construct(string $log_dir, string $log_file = '') {
         if (empty($log_dir)) {
@@ -40,33 +40,36 @@ class Logger implements ILogger {
 
     /**
      * 获取实例
-     * 
+     *
      * @param string $name 实例名称
      * @return $this
      */
     public static function getLogger(string $name = '__MAIN__') {
-        return self::$__instalce[$name] ?? null;
+        return self::$__instance[$name] ?? null;
     }
 
     /**
      * 注册日志实例
+     *
      * @param string $log_dir 日志目录
      * @param string $log_file 默认的日志文件
      * @param string $name 实例名称
+     * @return $this
      */
     public static function regist(string $log_dir, string $log_file = '', string $name = '__MAIN__') {
-        if (!isset(self::$__instalce[$name]) || self::$__instalce[$name] == null) {
-            self::$__instalce[$name] = new self($log_dir, $log_file);
+        if (!isset(self::$__instance[$name]) || self::$__instance[$name] == null) {
+            self::$__instance[$name] = new self($log_dir, $log_file);
         }
+        return self::$__instance[$name];
     }
 
     /**
      * 格式化日志信息
-     * 
+     *
      * @param string $msg
      * @param string $level
-     * @param string $category
      * @param int|float $time
+     * @return string
      */
     protected function _formatLog(string $msg, string $level, $time) {
         return sprintf("[%s%s] [%s] [PID:%d] %s\n", date('Y/m/d H:i:s', $time), strstr($time, '.'), $level, getmypid(), $msg);
@@ -74,7 +77,7 @@ class Logger implements ILogger {
 
     /**
      * 记录日志
-     * 
+     *
      * @param string $msg 信息
      * @param string $level 级别
      * @param string $category 日志分类，不同的分类存储到不同的日志文件
@@ -97,6 +100,50 @@ class Logger implements ILogger {
         } catch (\Throwable $e) {
             echo 'something bad happened when logging message' . PHP_EOL . $e->getTraceAsString() . PHP_EOL;
         }
+    }
+
+    /**
+     * 记录info级别的日志
+     *
+     * @param string $msg 信息
+     * @param string $category 日志分类，不同的分类存储到不同的日志文件
+     * @param bool $flush 立即刷新缓冲区
+     */
+    public function info(string $msg, string $category = '', bool $flush = false) {
+        $this->log($msg, self::LEVEL_INFO, $category, $flush);
+    }
+
+    /**
+     * 记录error级别的日志
+     *
+     * @param string $msg 信息
+     * @param string $category 日志分类，不同的分类存储到不同的日志文件
+     * @param bool $flush 立即刷新缓冲区
+     */
+    public function error(string $msg, string $category = '', bool $flush = false) {
+        $this->log($msg, self::LEVEL_ERROR, $category, $flush);
+    }
+
+    /**
+     * 记录warning级别的日志
+     *
+     * @param string $msg 信息
+     * @param string $category 日志分类，不同的分类存储到不同的日志文件
+     * @param bool $flush 立即刷新缓冲区
+     */
+    public function warning(string $msg, string $category = '', bool $flush = false) {
+        $this->log($msg, self::LEVEL_WARNING, $category, $flush);
+    }
+
+    /**
+     * 记录notice级别的日志
+     *
+     * @param string $msg 信息
+     * @param string $category 日志分类，不同的分类存储到不同的日志文件
+     * @param bool $flush 立即刷新缓冲区
+     */
+    public function notice(string $msg, string $category = '', bool $flush = false) {
+        $this->log($msg, self::LEVEL_NOTICE, $category, $flush);
     }
 
     /**
@@ -167,6 +214,7 @@ class Logger implements ILogger {
 
     /**
      * 切割日志文件
+     *
      * @param string $filename
      */
     protected function _rotateFiles(string $filename) {

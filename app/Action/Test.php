@@ -20,7 +20,6 @@ class Test implements IConsumer {
      * @return bool 执行成功返回true, 执行失败返回false
      */
     public function consume(IQueueMessage $msg): bool {
-
         if ($msg instanceof QueueMsgGroup) {
 
             foreach ($msg as $m) {

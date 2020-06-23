@@ -16,11 +16,12 @@ return array(
         'max_execute_jobs'  => 1000, //子进程最多执行任务数量(0为不限制)，防止内存泄漏
         'dynamic_idle_time' => 600, //动态子进程闲置的最长时间(0为不限制)
         'queue_health_size' => 100, //健康的队列长度, 超出后将开启动态进程
+        'monitor_interval'  => 3000, // worker监控间隔
     ],
     //队列模块
     'queue'   => [
         //redis
-        'class'            => '\Gino\Jobs\Core\Queue\RedisQueue',
+        'class'            => \Gino\Jobs\Core\Queue\RedisQueue::class,
         'host'             => '127.0.0.1',
         'port'             => 6379,
         'pass'             => '',
@@ -28,7 +29,7 @@ return array(
         'delay_queue_name' => 'php-jobs-delay', //延迟队列的名称
         /*
           //rabiitmq
-          'class'            => '\Gino\Jobs\Core\Queue\RabbitmqQueue',
+          'class'            => \Gino\Jobs\Core\Queue\RabbitmqQueue::class,
           'host'             => '127.0.0.1',
           'port'             => 5672,
           'user'             => 'admin',
@@ -45,7 +46,7 @@ return array(
             'min_workers' => 1, //最少的进程数
             'max_workers' => 2, //最大的进程数
             'name'        => 'php-jobs-delay',
-            'action'      => '\Gino\Jobs\Core\Action\RedisDelayDeliver',
+            'action'      => \Gino\Jobs\Core\Action\RedisDelayDeliver::class,
             'exchange'    => 'phpjob'
         ],
         //普通
@@ -53,7 +54,7 @@ return array(
             'min_workers' => 1, //最少的进程数
             'max_workers' => 4, //最大的进程数
             'name'        => 'test',
-            'action'      => '\Gino\Jobs\Action\Test',
+            'action'      => \Gino\Jobs\Action\Test::class,
             'exchange'    => 'phpjob',
 //            'tpo'         => 100, // redis队列支持一次处理多条消息
             'health_size' => 10, //健康的队列长度, 超出后将开启动态进程
@@ -72,13 +73,32 @@ return array(
         ],
         */
     ],
-    /*
-      //消息通知模块
-      'message' => [
-      [
-      'class'  => '\Gino\Jobs\Kit\Message\DingMessage',
-      'params' => ['token' => 'your code']
-      ],
-      ]
-     */
+
+    'monitor'  => [
+        \Gino\Jobs\Kit\Monitor\DefaultMonitor::class
+    ],
+
+    //消息通知模块
+    'notifier' => [
+        /*
+        'ding' => [ // 钉钉
+            'class'  => \Gino\Jobs\Kit\Message\DingMessage::class,
+            'params' => ['token' => 'your code']
+        ],
+        'smtp' => [ // 邮箱
+            'class'  => \Gino\Jobs\Kit\Message\MailMessage::class,
+            'params' => [
+                'host'     => 'smtp.exmail.qq.com',
+                'username' => 'xxxx@xxxx.com',
+                'password' => '******',
+                'port'     => 465,
+                'charset'  => 'utf-8',
+                'from'     => 'xxxx@xxxx.com', //发件人
+                'to'       => ['xxxx@xxxx.com'], // 收件人
+                'subject'  => 'jobs异常', // 邮件标题
+            ]
+        ],
+        */
+    ]
+
 );

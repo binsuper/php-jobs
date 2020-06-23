@@ -2,8 +2,9 @@
 
 namespace Gino\Jobs\Core;
 
-use Gino\Jobs\Core\Logger;
 use Gino\Jobs\Core\Config;
+use Gino\Jobs\Core\IFace\IMonitor;
+use Gino\Jobs\Core\Logger;
 use Gino\Jobs\Core\Exception\ExitException;
 use Gino\Jobs\Core\IFace\IQueueDelay;
 use Gino\Jobs\Core\Queue\Delay\Message as DelayMessage;
@@ -61,6 +62,13 @@ class Process {
     private $__queue_health_size = 0;
 
     /**
+     * Worker监控间隔
+     *
+     * @var int
+     */
+    private $__monitor_interval = 60000;
+
+    /**
      * 日志操作对象
      *
      * @var Logger
@@ -103,11 +111,11 @@ class Process {
     private $__opt_delay_enable = false;
 
     /**
-     * 消息通知对象
+     * 监视器
      *
      * @var array
      */
-    private $__message_notifier = [];
+    private $__monitors = [];
 
     public function __construct() {
         $config = Config::getConfig('process');
@@ -127,6 +135,7 @@ class Process {
         $this->__max_exeucte_jobs  = $config['max_execute_jobs'] ?? 0;
         $this->__dynamic_idle_time = $config['dynamic_idle_time'] ?? 0;
         $this->__queue_health_size = $config['queue_health_size'] ?? 0;
+        $this->__monitor_interval  = $config['monitor_interval'] ?? 60000;
         $this->__delay_queue_name  = Config::getConfig('queue', 'delay_queue_name', '');
         Utils::mkdir($this->__pid_dir);
         Utils::mkdir($this->__worker_info_dir);
@@ -135,16 +144,12 @@ class Process {
             $this->__opt_delay_enable = true;
         }
 
-        //消息模块
-        $notifier = Config::getConfig('message', '', []);
-        foreach ($notifier as $node) {
-            $class  = $node['class'] ?? false;
-            $params = $node['params'] ?? [];
-            if (!$class) {
-                continue;
-            }
-            $this->__message_notifier[] = new $class($params);
+        // 监视器
+        $monitors = Config::getConfig('monitor', '', []);
+        foreach ($monitors as $monitor) {
+            $this->__monitors[] = new $monitor();
         }
+
     }
 
     /**
@@ -598,72 +603,56 @@ class Process {
         }
 
         //定期检测
-        //异常时通知消息
-        if (!empty($this->__message_notifier)) {
-            $except_tmp = [];
-            \Swoole\Timer::tick(60000, function () use (&$except_tmp) {
-                $except_msg = [];
-                //清理不存在进程
-                $clear_keys = array_diff_key($this->__workers, $except_tmp);
-                foreach ($clear_keys as $key => $_) {
-                    if (isset($except_tmp)) {
-                        unset($except_tmp[$key]);
+        if (!empty($this->__monitors)) {
+            \Swoole\Timer::tick($this->__monitor_interval, function () {
+                foreach ($this->__monitors as $monitor) {
+                    try {
+                        /**
+                         * @var IMonitor $monitor
+                         */
+                        $monitor->start();
+                    } catch (\Throwable $ex) {
+                        Utils::catchError($this->_logger, $ex);
                     }
                 }
+
                 //子进程的信息
                 foreach ($this->__workers as $pid => $worker) {
+                    /**
+                     * @var Worker $worker
+                     */
                     try {
                         $info = $this->_readWorkerStatus($pid);
                     } catch (\Throwable $ex) {
                         continue;
                     }
                     if ($info) {
-                        $topic_name = $worker->getTopic()->getName();
-                        if (!isset($except_msg[$topic_name])) {
-                            $queue_size = $worker->getTopic()->getQueueSize() ?: 0;
-                            if ($queue_size >= $this->__queue_health_size) { //不健康了哦
-                                $except_msg[$topic_name]['queue_size'] = $queue_size;
-                                $except_msg[$topic_name]['avg_time']   = $info['avg_time'];
+
+                        // 监视器
+                        foreach ($this->__monitors as $monitor) {
+                            try {
+                                /**
+                                 * @var IMonitor $monitor
+                                 */
+                                $monitor->processing($pid, $worker->getTopic(), $info);
+                            } catch (\Throwable $ex) {
+                                Utils::catchError($this->_logger, $ex);
                             }
                         }
-                        $health_failed = 60; //($except_tmp[$pid]['failed'] ?? 0) + 60;
-                        $health_reject = 60; //($except_tmp[$pid]['reject'] ?? 0) + 60;
-                        if ($info['failed'] > $health_failed || $info['reject'] > $health_reject) {
-                            $except_msg[$topic_name]['failed'] = ($except_msg[$topic_name]['failed'] ?? 0) + $info['failed'];
-                            $except_msg[$topic_name]['reject'] = ($except_msg[$topic_name]['reject'] ?? 0) + $info['reject'];
-                            $except_tmp[$pid]                  = ['failed' => $info['failed'] ?? 0, 'reject' => $info['reject'] ?? 0];
-                        }
-                        if (isset($except_msg[$topic_name])) {
-                            $except_msg[$topic_name]['topic'] = $topic_name;
-                        }
                     }
                 }
-                //通知
-                if (!empty($except_msg)) {
-                    foreach ($except_msg as $node) {
-                        $topic_name = $node['topic'];
-                        $queue_size = $node['queue_size'] ?? false;
-                        $avg_time   = $node['avg_time'] ?? 0;
-                        $failed     = $node['failed'] ?? 0;
-                        $reject     = $node['reject'] ?? 0;
 
-                        $msg = '时间：' . date('Y-m-d H:i:s') . PHP_EOL;
-                        $msg .= "进程：{$this->_processName}" . PHP_EOL;
-                        $msg .= "主题：{$topic_name}" . PHP_EOL;
-                        $msg .= '异常：' . PHP_EOL;
-                        if ($queue_size) {
-                            $msg .= "\t• 消息积压太多了（数量：{$queue_size}), 平均处理时长：{$avg_time}" . PHP_EOL;
-                        }
-                        if ($failed > 0 || $reject > 0) {
-                            $msg .= "\t• 消息处理异常，失败(Failed)的数量：{$failed}，拒绝(Reject)的数量：{$reject}" . PHP_EOL;
-                        }
-                        foreach ($this->__message_notifier as $notifier) {
-                            go(function () use ($notifier, $msg) {
-                                $notifier->notify($msg);
-                            });
-                        }
+                foreach ($this->__monitors as $monitor) {
+                    try {
+                        /**
+                         * @var IMonitor $monitor
+                         */
+                        $monitor->finish();
+                    } catch (\Throwable $ex) {
+                        Utils::catchError($this->_logger, $ex);
                     }
                 }
+
             });
         }
     }
@@ -884,7 +873,6 @@ class Process {
     public function summaryWorkInfo(Worker $worker) {
         try {
             $info = $this->_readWorkerStatus($worker->getPID());
-            $this->_logger->flush();
             if (false !== $info) {
                 $topic = $worker->getTopic();
 
@@ -892,8 +880,6 @@ class Process {
                 $this->__topic_info[$topic->getName()]['failed'] = ($this->__topic_info[$topic->getName()]['failed'] ?? 0) + intval($info['failed']);
                 $this->__topic_info[$topic->getName()]['ack']    = ($this->__topic_info[$topic->getName()]['ack'] ?? 0) + intval($info['ack']);
                 $this->__topic_info[$topic->getName()]['reject'] = ($this->__topic_info[$topic->getName()]['reject'] ?? 0) + intval($info['reject']);
-                
-                $this->_logger->log('info: ' . json_encode($this->__topic_info));
             }
 
         } catch (\Throwable $ex) {

@@ -71,14 +71,9 @@ class Topic {
      */
     public function execDynamic($callback) {
         try {
-            // 优先去topic的health_size, 如果没有设置，则取process的queue_health_size
-            if (isset($this->__config['health_size'])) {
-                $health_size = $this->__config['health_size'];
-            } else {
-                $health_size = Config::getConfig('process', 'queue_health_size');
-            }
 
-            $queue_size = $this->getQueueSize();
+            $health_size = $this->getHealthSize();
+            $queue_size  = $this->getQueueSize();
             if ($health_size == 0 || $health_size > $queue_size) {
                 return;
             }
@@ -158,6 +153,22 @@ class Topic {
      */
     public function getTPO(): int {
         return $this->__trans_per_operate;
+    }
+
+
+    /**
+     * 获取健康的队列长度
+     *
+     * @return int
+     */
+    public function getHealthSize(): int {
+        // 优先去topic的health_size, 如果没有设置，则取process的queue_health_size
+        if (isset($this->__config['health_size'])) {
+            return $this->__config['health_size'];
+        }
+
+        return Config::getConfig('process', 'queue_health_size', 100);
+
     }
 
 }

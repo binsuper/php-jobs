@@ -10,7 +10,7 @@ use Gino\Jobs\Core\Queue\Delay\Message as DelayMessage;
 
 /**
  * 进程管理
- * 
+ *
  * @author GinoHuang <binsuper@126.com>
  */
 class Process {
@@ -30,69 +30,81 @@ class Process {
     private $__process_log_file;
     private $__workers         = []; //子进程列表
     private $__topics          = [];
+    private $__topic_info      = []; // 主题信息
 
     /**
      * 进程用户
-     * @var  
+     *
+     * @var
      */
     private $__user = '';
 
     /**
      * 最大执行任务数量, 0为不限制
-     * @var int 
+     *
+     * @var int
      */
     private $__max_exeucte_jobs = 0;
 
     /**
      * 动态进程最长闲置时间(秒), 0为不限制
-     * @var int 
+     *
+     * @var int
      */
     private $__dynamic_idle_time = 0;
 
     /**
      * 健康的队列长度, 超出后将启动动态进程
+     *
      * @var int
      */
     private $__queue_health_size = 0;
 
     /**
      * 日志操作对象
+     *
      * @var Logger
      */
     protected $_logger;
 
     /**
      * 进程名称
+     *
      * @var string
      */
     protected $_processName;
 
     /**
      * 记录进程开始时间
-     * @var int 
+     *
+     * @var int
      */
     private $__begin_time = 0;
 
     /**
      * 延迟队列的名称
-     * @var string 
+     *
+     * @var string
      */
     private $__delay_queue_name = '';
 
     /**
      * 延迟队列的执行索引
+     *
      * @var int
      */
     private $__roll_slot = 0;
 
     /**
      * 是否允许延时队列
-     * @var bool 
+     *
+     * @var bool
      */
     private $__opt_delay_enable = false;
 
     /**
      * 消息通知对象
+     *
      * @var array
      */
     private $__message_notifier = [];
@@ -137,6 +149,7 @@ class Process {
 
     /**
      * 初始化
+     *
      * @param array $run_opt 运行时配置
      * @throws \RuntimeException
      */
@@ -160,7 +173,7 @@ class Process {
         \Swoole\Process::daemon(); //使当前进程蜕变为一个守护进程
         //用户
         if (empty($this->__user)) {
-            $user  = $group = '';
+            $user = $group = '';
             if (function_exists('posix_getpwuid') && function_exists('posix_getuid')) {
                 $uinfo = posix_getpwuid(posix_getuid());
                 $user  = $uinfo ? $uinfo['name'] : '';
@@ -224,6 +237,7 @@ class Process {
 
     /**
      * 设置pid文件
+     *
      * @throws \RuntimeException
      */
     private function __setPidFile() {
@@ -234,7 +248,7 @@ class Process {
 
     /**
      * 设置主进程的信息
-     * 
+     *
      * @param array $data
      * @throws \RuntimeException
      */
@@ -247,7 +261,7 @@ class Process {
 
     /**
      * 获取主进程的信息
-     * 
+     *
      * @param string $key
      * @return array|mixed
      * @throws \RuntimeException
@@ -269,6 +283,7 @@ class Process {
 
     /**
      * 设置进程名称
+     *
      * @param string $process_name
      */
     private function __setProcessName(string $process_name) {
@@ -287,6 +302,7 @@ class Process {
 
     /**
      * 启动进程
+     *
      * @param array $run_opts 运行时的配置
      */
     public function start(array $run_opts = []) {
@@ -308,7 +324,7 @@ class Process {
                     continue;
                 }
             }
-            $topic->execStatic(function() use($topic) {
+            $topic->execStatic(function () use ($topic) {
                 if (self::STATUS_RUNNING !== $this->__status) {
                     return;
                 }
@@ -322,12 +338,16 @@ class Process {
                     $this->_logger->log("worker start, PID={$pid}, TYPE=" . Worker::TYPE_STATIC, Logger::LEVEL_INFO, $this->__process_log_file, true);
                 }
             });
+
             $this->__topics[] = $topic;
+
+            $this->__topic_info[$topic->getName()] = [];
         }
     }
 
     /**
      * fork子进程
+     *
      * @param \Gino\Jobs\Core\Topic $topic
      * @param string $child_type 子进程类型
      * @return int 成功返回子进程的ID，失败返回false
@@ -335,7 +355,7 @@ class Process {
     protected function _forkWorker(Topic $topic, string $child_type) {
         $worker = new Worker($child_type);
         $worker->setTopic($topic);
-        $worker->action(function() use($worker, $topic) {
+        $worker->action(function () use ($worker, $topic) {
             //运行内容
             $this->_checkMpid($worker);
             $this->__setProcessName('worker' . $this->_processName);
@@ -361,7 +381,7 @@ class Process {
                     $this->__status            = $data['status'];
                     $this->__status_updatetime = microtime(true);
                     //flush log
-                    go(function() use($data) {
+                    go(function () use ($data) {
                         $flush = $data['flush'] ?? false;
                         if (false !== $flush && time() - $flush <= 30) {
                             if (!isset($this->__flush_time) || $this->__flush_time < $flush) {
@@ -401,16 +421,13 @@ class Process {
                     $where = true;
                     if (self::STATUS_RUNNING !== $this->__status) {
                         $where = false;
-                    }
-                    //执行任务数限制
+                    } //执行任务数限制
                     else if ($this->__max_exeucte_jobs > 0 && $job->doneCount() >= $this->__max_exeucte_jobs) {
                         $where = false;
-                    }
-                    //执行时间限制
+                    } //执行时间限制
                     else if ($this->__max_exeucte_time > 0 && $worker->getDuration() >= $this->__max_exeucte_time) {
                         $where = false;
-                    }
-                    //动态进程闲置时间限制
+                    } //动态进程闲置时间限制
                     else if ($this->__dynamic_idle_time > 0 && $worker->getType() == Worker::TYPE_DYNAMIC && $job->idleTime() >= $this->__dynamic_idle_time) {
                         $where = false;
                     }
@@ -426,7 +443,7 @@ class Process {
                 }
             } while ($where);
             unset($job);
-            $this->_saveWorkerStatus([], true);
+            // $this->_saveWorkerStatus([], true);
             $this->_logger->flush();
         });
         $after = memory_get_usage(false);
@@ -449,22 +466,22 @@ class Process {
     protected function _registSignal() {
 
         //强制关闭进程
-        \Swoole\Process::signal(SIGTERM, function($signo) {
+        \Swoole\Process::signal(SIGTERM, function ($signo) {
             $this->_killMaster();
         });
 
         //强制关闭进程
-        \Swoole\Process::signal(SIGKILL, function($signo) {
+        \Swoole\Process::signal(SIGKILL, function ($signo) {
             $this->_killMaster();
         });
 
         //平滑退出
-        \Swoole\Process::signal(SIGUSR1, function($signo) {
+        \Swoole\Process::signal(SIGUSR1, function ($signo) {
             $this->waitWorkers();
         });
 
         //进程状态信息
-        \Swoole\Process::signal(SIGUSR2, function($signo) {
+        \Swoole\Process::signal(SIGUSR2, function ($signo) {
             $this->_saveMasterStatus();
         });
 
@@ -474,13 +491,23 @@ class Process {
         });
 
         //子进程关闭信号
-        \Swoole\Process::signal(SIGCHLD, function($signo) {
+        \Swoole\Process::signal(SIGCHLD, function ($signo) {
             try {
                 while ($ret = \Swoole\Process::wait(false)) { //$ret = array('code' => 0, 'pid' => 15001, 'signal' => 15);
-                    $pid             = $ret['pid'];
-                    $worker          = $this->__workers[$pid];
+                    $pid = $ret['pid'];
+
+                    /**
+                     * @var $worker Worker
+                     */
+                    $worker = $this->__workers[$pid];
                     unset($this->__workers[$pid]);
                     $this->__workers = array_slice($this->__workers, 0, null, true);
+
+                    // 统计work执行的信息
+                    $this->summaryWorkInfo($worker);
+
+                    // 清理状态文件
+                    $this->_saveWorkerStatus([], true, $pid);
 
                     //主进程正常运行且子进程是静态类型，则重启该进程
                     if ($this->__status == self::STATUS_RUNNING && $worker && $worker->getType() === Worker::TYPE_STATIC) {
@@ -512,7 +539,6 @@ class Process {
                         $this->_logger->log('all workers exit, master exit security', Logger::LEVEL_INFO, $this->__process_log_file);
                         $this->_exit();
                     }
-                    $after = memory_get_usage(false);
                 }
             } catch (\Exception $ex) {
                 Utils::catchError($this->_logger, $ex);
@@ -528,18 +554,18 @@ class Process {
     protected function _registTimer() {
         //检测topic
         //4.2.10版本开始，不允许在协程中fork进程，所以使用信号处理
-        \Swoole\Timer::tick(5000, function() {
+        \Swoole\Timer::tick(5000, function () {
             @\Swoole\Process::kill($this->__pid, SIGALRM);
         });
 
         //每10分钟自动保存当前的状态信息
-        \Swoole\Timer::tick(600000, function() {
+        \Swoole\Timer::tick(600000, function () {
             @\Swoole\Process::kill($this->__pid, SIGUSR2);
         });
 
         //处理延迟任务
         if ($this->__opt_delay_enable) {
-            \Swoole\Timer::tick(1000, function($timer_id) {
+            \Swoole\Timer::tick(1000, function ($timer_id) {
                 try {
                     if (empty($this->__topics)) {
                         \Swoole\Timer::clear($timer_id);
@@ -561,7 +587,7 @@ class Process {
                         unset($queue);
                         return;
                     }
-                    $queue->scanDelayQueue(function(DelayMessage $msg) use($queue) {
+                    $queue->scanDelayQueue(function (DelayMessage $msg) use ($queue) {
                         return $queue->pushTarget($msg->getTargetName(), $msg->getPayload()) ? true : false;
                     });
                     unset($queue);
@@ -575,7 +601,7 @@ class Process {
         //异常时通知消息
         if (!empty($this->__message_notifier)) {
             $except_tmp = [];
-            \Swoole\Timer::tick(60000, function() use(&$except_tmp) {
+            \Swoole\Timer::tick(60000, function () use (&$except_tmp) {
                 $except_msg = [];
                 //清理不存在进程
                 $clear_keys = array_diff_key($this->__workers, $except_tmp);
@@ -632,7 +658,7 @@ class Process {
                             $msg .= "\t• 消息处理异常，失败(Failed)的数量：{$failed}，拒绝(Reject)的数量：{$reject}" . PHP_EOL;
                         }
                         foreach ($this->__message_notifier as $notifier) {
-                            go(function() use($notifier, $msg) {
+                            go(function () use ($notifier, $msg) {
                                 $notifier->notify($msg);
                             });
                         }
@@ -648,7 +674,7 @@ class Process {
     private function __checkDynamic() {
         try {
             foreach ($this->__topics as $topic) {
-                $topic->execDynamic(function() use($topic) {
+                $topic->execDynamic(function () use ($topic) {
                     if (self::STATUS_RUNNING !== $this->__status) {
                         return;
                     }
@@ -725,6 +751,7 @@ class Process {
 
     /**
      * 展示进程状态
+     *
      * @return string
      */
     public function showStatus(bool $return = false) {
@@ -754,6 +781,22 @@ class Process {
                 $str .= "delay_count: \t\t" . $queue->getDelayQueueSize() . PHP_EOL;
             }
         }
+
+        $str .= PHP_EOL . '#topic' . PHP_EOL;
+        $str .= ' --------------------------------------------------------------------------------------' . PHP_EOL;
+        $str .= ' ' . Utils::formatTablePrint(['', 'Topic', 'Done', 'Failed', 'Ack', 'Reject']) . PHP_EOL;
+        $str .= ' --------------------------------------------------------------------------------------' . PHP_EOL;
+        foreach ($this->__topic_info as $topic_name => $info) {
+            $str .= ' ' . Utils::formatTablePrint([
+                    '',
+                    $topic_name ?? '-',
+                    $info['done'] ?? '-',
+                    $info['failed'] ?? '-',
+                    $info['ack'] ?? '-',
+                    $info['reject'] ?? '-',
+                ]) . PHP_EOL;
+        }
+
         //header
         $str .= PHP_EOL . '#worker' . PHP_EOL;
         $str .= ' --------------------------------------------------------------------------------------------------------------------------------------------------------------' . PHP_EOL;
@@ -773,20 +816,20 @@ class Process {
             }
             if ($info) {
                 $str .= ' ' . Utils::formatTablePrint([
-                            $info['pid'] ?? '-',
-                            $info['topic'] ?? '-',
-                            $info['type'] ?? '-',
-                            $worker->getTopic()->getQueueSize(),
-                            $info['status'] ?? '-',
-                            $info['duration'] ?? '-',
-                            $info['idle_time'] ?? '-',
-                            $info['avg_time'] ?? '-',
-                            $info['done'] ?? '-',
-                            $info['failed'] ?? '-',
-                            $info['ack'] ?? '-',
-                            $info['reject'] ?? '-',
-                            $info['now'] ?? '-',
-                        ]) . PHP_EOL;
+                        $info['pid'] ?? '-',
+                        $info['topic'] ?? '-',
+                        $info['type'] ?? '-',
+                        $worker->getTopic()->getQueueSize(),
+                        $info['status'] ?? '-',
+                        $info['duration'] ?? '-',
+                        $info['idle_time'] ?? '-',
+                        $info['avg_time'] ?? '-',
+                        $info['done'] ?? '-',
+                        $info['failed'] ?? '-',
+                        $info['ack'] ?? '-',
+                        $info['reject'] ?? '-',
+                        $info['now'] ?? '-',
+                    ]) . PHP_EOL;
             }
         }
         return $str;
@@ -794,6 +837,7 @@ class Process {
 
     /**
      * 保存主进程的状态信息
+     *
      * @return string
      */
     protected function _saveMasterStatus() {
@@ -811,8 +855,9 @@ class Process {
     /**
      * 更新子进程信息
      */
-    protected function _saveWorkerStatus(array $info, bool $unlink = false) {
-        $file = $this->__worker_info_dir . DIRECTORY_SEPARATOR . getmypid() . '.info';
+    protected function _saveWorkerStatus(array $info, bool $unlink = false, int $pid = -1) {
+        if ($pid == -1) $pid = getmypid();
+        $file = $this->__worker_info_dir . DIRECTORY_SEPARATOR . $pid . '.info';
         if ($unlink) {
             file_exists($file) && @unlink($file);
         } else {
@@ -833,6 +878,27 @@ class Process {
             return false;
         }
         return json_decode($data, true);
+    }
+
+    // 统计work执行的信息
+    public function summaryWorkInfo(Worker $worker) {
+        try {
+            $info = $this->_readWorkerStatus($worker->getPID());
+            $this->_logger->flush();
+            if (false !== $info) {
+                $topic = $worker->getTopic();
+
+                $this->__topic_info[$topic->getName()]['done']   = ($this->__topic_info[$topic->getName()]['done'] ?? 0) + intval($info['done']);
+                $this->__topic_info[$topic->getName()]['failed'] = ($this->__topic_info[$topic->getName()]['failed'] ?? 0) + intval($info['failed']);
+                $this->__topic_info[$topic->getName()]['ack']    = ($this->__topic_info[$topic->getName()]['ack'] ?? 0) + intval($info['ack']);
+                $this->__topic_info[$topic->getName()]['reject'] = ($this->__topic_info[$topic->getName()]['reject'] ?? 0) + intval($info['reject']);
+                
+                $this->_logger->log('info: ' . json_encode($this->__topic_info));
+            }
+
+        } catch (\Throwable $ex) {
+            // 不做处理
+        }
     }
 
     /**

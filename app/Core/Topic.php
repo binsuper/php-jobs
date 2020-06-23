@@ -71,13 +71,26 @@ class Topic {
      */
     public function execDynamic($callback) {
         try {
-            $health_size = Config::getConfig('process', 'queue_health_size');
-            $queue_size  = $this->getQueueSize();
+            // 优先去topic的health_size, 如果没有设置，则取process的queue_health_size
+            if (isset($this->__config['health_size'])) {
+                $health_size = $this->__config['health_size'];
+            } else {
+                $health_size = Config::getConfig('process', 'queue_health_size');
+            }
+
+            $queue_size = $this->getQueueSize();
             if ($health_size == 0 || $health_size > $queue_size) {
                 return;
             }
-            //创建最小数量的进程
-            for ($i = count($this->__workers); $i < $this->__max_workers; $i++) {
+
+            // 计算出合理的动态进程数
+            $dynamic_count = ceil($queue_size / $health_size);
+            if ($dynamic_count > $this->__max_workers) {
+                $dynamic_count = $this->__max_workers;
+            }
+
+            //创建最大数量的进程
+            for ($i = count($this->__workers); $i < $dynamic_count; $i++) {
                 call_user_func($callback);
             }
         } catch (\Exception $ex) {

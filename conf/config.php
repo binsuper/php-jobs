@@ -55,7 +55,8 @@ return array(
             'name'        => 'test',
             'action'      => '\Gino\Jobs\Action\Test',
             'exchange'    => 'phpjob',
-            'tpo'         => 100 // redis队列支持一次处理多条消息
+//            'tpo'         => 100, // redis队列支持一次处理多条消息
+            'health_size' => 10, //健康的队列长度, 超出后将开启动态进程
         ],
         /* rabbitmq 增加死信队列
         [

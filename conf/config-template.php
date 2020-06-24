@@ -2,12 +2,12 @@
 
 return array(
     //日志模块
-    'log'     => [
+    'log'      => [
         'log_dir'  => GINO_JOBS_ROOT_PATH . '/var/logs', //日志存储的目录
         'log_file' => 'application.log', //系统日志文件
     ],
     //进程模块
-    'process' => [
+    'process'  => [
         'user'              => 'www:www', //启动用户
         'data_dir'          => GINO_JOBS_ROOT_PATH . '/var/data', //数据目录
         'process_name'      => ' :php-jobs', //设置进程的名称
@@ -16,10 +16,10 @@ return array(
         'max_execute_jobs'  => 1000, //子进程最多执行任务数量(0为不限制)，防止内存泄漏
         'dynamic_idle_time' => 600, //动态子进程闲置的最长时间(0为不限制)
         'queue_health_size' => 100, //健康的队列长度, 超出后将开启动态进程
-        'monitor_interval'  => 3000, // worker监控间隔
+        'monitor_interval'  => 60000, // worker监控间隔(毫秒)
     ],
     //队列模块
-    'queue'   => [
+    'queue'    => [
         //redis
         'class'            => \Gino\Jobs\Core\Queue\RedisQueue::class,
         'host'             => '127.0.0.1',
@@ -39,7 +39,7 @@ return array(
          */
     ],
     //任务模块
-    'topics'  => [
+    'topics'   => [
         //任务: 延迟任务分派
         //要做延迟任务的，需要加上下面的任务，帮助任务分配到指定的延迟队列
         [
@@ -74,17 +74,18 @@ return array(
         */
     ],
 
+    // 自定义监控
     'monitor'  => [
         \Gino\Jobs\Kit\Monitor\DefaultMonitor::class
     ],
 
     //消息通知模块
     'notifier' => [
+        /*
         'wxwork' => [ // 企业微信
             'class'  => \Gino\Jobs\Kit\Message\WxWorkMessage::class,
             'params' => ['token' => 'your code']
         ],
-        /*
         'ding' => [ // 钉钉
             'class'  => \Gino\Jobs\Kit\Message\DingMessage::class,
             'params' => ['token' => 'your code']

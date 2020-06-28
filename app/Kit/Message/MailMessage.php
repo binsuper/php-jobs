@@ -57,6 +57,8 @@ class MailMessage implements \Gino\Jobs\Core\IFace\INotifier {
             $mail->Body    = strtr($msg, ["\n" => '<br/>', "\t" => '&nbsp;&nbsp;&nbsp;&nbsp;']);
 
             $mail->send();
+
+            unset($mail);
         } catch (\Exception $ex) {
             Utils::catchError(Logger::getLogger(), $ex);
         }

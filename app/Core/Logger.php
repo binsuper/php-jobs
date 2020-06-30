@@ -82,6 +82,7 @@ class Logger implements ILogger {
      * @param string $level 级别
      * @param string $category 日志分类，不同的分类存储到不同的日志文件
      * @param bool $flush 立即刷新缓冲区
+     * @return $this
      */
     public function log(string $msg, string $level = self::LEVEL_INFO, string $category = '', bool $flush = false) {
         try {
@@ -100,6 +101,7 @@ class Logger implements ILogger {
         } catch (\Throwable $e) {
             echo 'something bad happened when logging message' . PHP_EOL . $e->getTraceAsString() . PHP_EOL;
         }
+        return $this;
     }
 
     /**
@@ -108,9 +110,11 @@ class Logger implements ILogger {
      * @param string $msg 信息
      * @param string $category 日志分类，不同的分类存储到不同的日志文件
      * @param bool $flush 立即刷新缓冲区
+     * @return $this
      */
     public function info(string $msg, string $category = '', bool $flush = false) {
         $this->log($msg, self::LEVEL_INFO, $category, $flush);
+        return $this;
     }
 
     /**
@@ -119,9 +123,11 @@ class Logger implements ILogger {
      * @param string $msg 信息
      * @param string $category 日志分类，不同的分类存储到不同的日志文件
      * @param bool $flush 立即刷新缓冲区
+     * @return $this
      */
     public function error(string $msg, string $category = '', bool $flush = false) {
         $this->log($msg, self::LEVEL_ERROR, $category, $flush);
+        return $this;
     }
 
     /**
@@ -130,9 +136,11 @@ class Logger implements ILogger {
      * @param string $msg 信息
      * @param string $category 日志分类，不同的分类存储到不同的日志文件
      * @param bool $flush 立即刷新缓冲区
+     * @return $this
      */
     public function warning(string $msg, string $category = '', bool $flush = false) {
         $this->log($msg, self::LEVEL_WARNING, $category, $flush);
+        return $this;
     }
 
     /**
@@ -141,9 +149,11 @@ class Logger implements ILogger {
      * @param string $msg 信息
      * @param string $category 日志分类，不同的分类存储到不同的日志文件
      * @param bool $flush 立即刷新缓冲区
+     * @return $this
      */
     public function notice(string $msg, string $category = '', bool $flush = false) {
         $this->log($msg, self::LEVEL_NOTICE, $category, $flush);
+        return $this;
     }
 
     /**

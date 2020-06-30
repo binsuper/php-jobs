@@ -501,6 +501,8 @@ class Process {
                 while ($ret = \Swoole\Process::wait(false)) { //$ret = array('code' => 0, 'pid' => 15001, 'signal' => 15);
                     $pid = $ret['pid'];
 
+                    $this->_logger->log("worker process is exit; PID: {$pid}", Logger::LEVEL_ERROR, 'error', true);
+
                     /**
                      * @var $worker Worker
                      */
@@ -710,7 +712,7 @@ class Process {
         $data           = $this->getMasterInfo();
         $data['status'] = $this->__status;
         $this->__setMasterInfo($data);
-        $this->_logger->log('wait workers quit', Logger::LEVEL_INFO, $this->__process_log_file);
+        $this->_logger->log('wait workers quit', Logger::LEVEL_INFO, $this->__process_log_file, true);
         //特殊情况下，此时所有子进程全部都已经结束，则直接安全退出
         if (empty($this->__workers) && getmypid() == ($data['pid'] ?? -1)) {
             $this->_exit();

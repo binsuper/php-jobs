@@ -109,7 +109,7 @@ class Worker {
     }
 
     /**
-     * @param type $topic
+     * @param Topic $topic
      */
     function setTopic(Topic $topic) {
         $this->__topic = $topic;

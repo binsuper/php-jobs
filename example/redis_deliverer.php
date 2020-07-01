@@ -27,6 +27,6 @@ class RedisDeliverer implements IDeliverer {
 }
 
 $producer = new RedisProducer(new RedisDeliverer(), 'test');
-for ($i = 0; $i != 50000; $i++) {
+for ($i = 0; $i != 100000; $i++) {
     $producer->setBody('no.' . $i)->delay(rand(5, 180), 'php-jobs-delay')->deliver();
 }

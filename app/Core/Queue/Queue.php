@@ -21,9 +21,11 @@ class Queue {
 
     /**
      * 获取队列
+     *
      * @param Topic $topic
      * @param bool $is_consume 设置是否消费队列, 默认为true
      * @return IQueueDriver|IQueueProducer 失败返回false
+     * @throws \Exception
      */
     public static function getQueue(Topic $topic, bool $is_consume = true) {
         $config                = Config::getConfig('queue');
@@ -53,7 +55,8 @@ class Queue {
 
     /**
      * 获取延时队列
-     * @return IQueueDriver|IQueueProducer|IQueueDelay 失败返回false
+     *
+     * @return IQueueDriver|IQueueProducer|IQueueDelay|bool 失败返回false
      * @throws \Exception
      */
     public static function getDelayQueue() {
@@ -89,5 +92,5 @@ class Queue {
         }
         return static::$__instance[$key];
     }
-    
+
 }

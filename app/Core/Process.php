@@ -2,12 +2,12 @@
 
 namespace Gino\Jobs\Core;
 
-use Gino\Jobs\Core\Config;
+use Cassandra\Time;
 use Gino\Jobs\Core\IFace\IMonitor;
-use Gino\Jobs\Core\Logger;
 use Gino\Jobs\Core\Exception\ExitException;
 use Gino\Jobs\Core\IFace\IQueueDelay;
 use Gino\Jobs\Core\Queue\Delay\Message as DelayMessage;
+use Swoole\Timer;
 
 /**
  * 进程管理
@@ -315,6 +315,7 @@ class Process {
         $this->_registSignal();
         $this->_registTopics();
         $this->_registTimer();
+        $this->_forkDelayWork();
     }
 
     /**
@@ -414,6 +415,7 @@ class Process {
                                 'reject'    => $job->rejectCount(), //拒绝的消息数量
                                 'avg_time'  => $job->avgTime(), //任务执行平均时长
                                 'idle_time' => intval($job->idleTime()) . 's', //已闲置的时长
+                                'mem_usage' => Utils::getMemoryUsage(), // 内存占用
                             ];
                             $this->_saveWorkerStatus($info);
                         } catch (\Throwable $ex) {
@@ -451,7 +453,6 @@ class Process {
             // $this->_saveWorkerStatus([], true);
             $this->_logger->flush();
         });
-        $after = memory_get_usage(false);
         try {
             $pid = $worker->start();
             if ($pid) {
@@ -463,6 +464,151 @@ class Process {
             Utils::catchError($this->_logger, $ex);
         }
         return $pid;
+    }
+
+    /**
+     * 开启演示队列功能
+     *
+     * @return int 成功返回子进程的ID，失败返回false
+     */
+    protected function _forkDelayWork() {
+        if (!$this->__opt_delay_enable) {
+            return false;
+        }
+        try {
+            $worker = new Worker(Worker::TYPE_STATIC);
+            $worker->action(function () use ($worker) {
+                //运行内容
+                $this->_checkMpid($worker);
+                $this->__setProcessName('worker#delay' . $this->_processName);
+
+                // 定时器 - 检测主进程的运行状态
+                Timer::tick(500, function ($timer_id) {
+                    try {
+                        $data                      = $this->getMasterInfo();
+                        $this->__status            = $data['status'];
+                        $this->__status_updatetime = microtime(true);
+                        //flush log
+                        go(function () use ($data) {
+                            $flush = $data['flush'] ?? false;
+                            if (false !== $flush && time() - $flush <= 30) {
+                                if (!isset($this->__flush_time) || $this->__flush_time < $flush) {
+                                    $this->__flush_time = $flush;
+                                    $this->_logger->flush();
+                                }
+                            }
+                        });
+                    } catch (\Throwable $ex) {
+                        Utils::catchError($this->_logger, $ex);
+                    }
+
+                    if (self::STATUS_RUNNING !== $this->__status) { // 非运行状态
+                        Timer::clear($timer_id);
+                        return;
+                    }
+                });
+
+                // 定时器 - 更新进程状态
+                $update_status_ticker = 0;
+                Timer::tick(500, function ($timer_id) use ($worker, &$update_status_ticker) {
+                    if (self::STATUS_RUNNING !== $this->__status) { // 非运行状态
+                        Timer::clear($timer_id);
+                        return;
+                    }
+                    $update_status_ticker += 500;
+                    if ($update_status_ticker >= 5000) { //5秒更新
+                        $update_status_ticker = 0;
+                        try {
+                            $info = [
+                                'pid'       => getmypid(),
+                                'now'       => date('Y-m-d H:i:s'),
+                                'name'      => '[delay]',
+                                'duration'  => intval($worker->getDuration()) . 's', //已运行时长
+                                'type'      => $worker->getType(), //子进程类型
+                                'status'    => 'running',
+                                'done'      => 0, //已完成的任务数
+                                'failed'    => 0, //拒绝的任务数量
+                                'ack'       => 0, //正确应答的消息数量
+                                'reject'    => 0, //拒绝的消息数量
+                                'avg_time'  => 0, //任务执行平均时长
+                                'idle_time' => '0s', //已闲置的时长
+                                'mem_usage' => Utils::getMemoryUsage(), // 内存占用
+                            ];
+                            $this->_saveWorkerStatus($info);
+                        } catch (\Throwable $ex) {
+                            Utils::catchError($this->_logger, $ex);
+                        }
+                    }
+                });
+
+                // 定时器 - 处理延时队列数据
+                Timer::tick(1000, function ($timer_id) use ($worker, &$update_status_ticker) {
+                    try {
+                        if (self::STATUS_RUNNING !== $this->__status) { // 非运行状态
+                            Timer::clear($timer_id);
+                            return;
+                        }
+
+                        try {
+                            $queue = Queue\Queue::getDelayQueue();
+                        } catch (\Throwable $ex) {
+                            Utils::catchError($this->_logger, $ex);
+                            Timer::clear($timer_id);
+                            return;
+                        }
+                        if (!$queue) {
+                            Timer::clear($timer_id);
+                            return;
+                        }
+                        if (!($queue instanceof IQueueDelay)) { //不支持延迟队列
+                            Timer::clear($timer_id);
+                            $queue->close();
+                            unset($queue);
+                            return;
+                        }
+
+                        $queue->scanDelayQueue(function (DelayMessage $msg) use ($queue) {
+                            return $queue->pushTarget($msg->getTargetName(), $msg->getPayload()) ? true : false;
+                        }, function ($leave_count) {
+                            // 如果剩余数量不是很多，则等待执行完成, 否则立即结束
+                            if ($leave_count >= 10000 && self::STATUS_RUNNING !== $this->__status) { // 非运行状态
+                                return false;
+                            }
+
+                            // 当数据量过大时，定期进行休眠让出时间片，避免当前进程卡死
+                            if ($leave_count > 1000) {
+                                \Co::sleep(0.001);
+                            }
+
+                            return true;
+                        });
+                        unset($queue);
+                    } catch (\Throwable $ex) {
+                        Utils::catchError($this->_logger, $ex);
+                    }
+
+                });
+
+                \Swoole\Event::wait();
+
+            });
+
+            try {
+                $pid = $worker->start();
+                if ($pid) {
+                    $this->__workers[$pid] = $worker;
+                }
+            } catch (\Exception $ex) {
+                Utils::catchError($this->_logger, $ex);
+            } catch (\Throwable $ex) {
+                Utils::catchError($this->_logger, $ex);
+            }
+            return $pid;
+
+        } catch (\Throwable $ex) {
+            Utils::catchError($this->_logger, $ex);
+        }
+        return false;
     }
 
     /**
@@ -501,8 +647,6 @@ class Process {
                 while ($ret = \Swoole\Process::wait(false)) { //$ret = array('code' => 0, 'pid' => 15001, 'signal' => 15);
                     $pid = $ret['pid'];
 
-                    $this->_logger->log("worker process is exit; PID: {$pid}", Logger::LEVEL_ERROR, 'error', true);
-
                     /**
                      * @var $worker Worker
                      */
@@ -520,7 +664,13 @@ class Process {
                     if ($this->__status == self::STATUS_RUNNING && $worker && $worker->getType() === Worker::TYPE_STATIC) {
                         //多次尝试重启进程
                         for ($i = 0; $i != 20; ++$i) {
-                            $new_pid = $this->_forkWorker($worker->getTopic(), $worker->getType());
+                            if (!$worker->getTopic()) {
+                                $new_pid = 0;
+                                // 重启有BUG，子进程协程无效，无法阻塞进程
+                                $new_pid = $this->_forkDelayWork();
+                            } else {
+                                $new_pid = $this->_forkWorker($worker->getTopic(), $worker->getType());
+                            }
                             if ($new_pid > 0) {
                                 break;
                             }
@@ -561,16 +711,17 @@ class Process {
     protected function _registTimer() {
         //检测topic
         //4.2.10版本开始，不允许在协程中fork进程，所以使用信号处理
-        \Swoole\Timer::tick(5000, function () {
+        Timer::tick(5000, function () {
             @\Swoole\Process::kill($this->__pid, SIGALRM);
         });
 
         //每10分钟自动保存当前的状态信息
-        \Swoole\Timer::tick(600000, function () {
+        Timer::tick(600000, function () {
             @\Swoole\Process::kill($this->__pid, SIGUSR2);
         });
 
         //处理延迟任务
+        /*
         if ($this->__opt_delay_enable) {
             \Swoole\Timer::tick(1000, function ($timer_id) {
                 try {
@@ -603,10 +754,11 @@ class Process {
                 }
             });
         }
+        */
 
         //定期检测
         if (!empty($this->__monitors)) {
-            \Swoole\Timer::tick($this->__monitor_interval, function () {
+            Timer::tick($this->__monitor_interval, function () {
                 foreach ($this->__monitors as $monitor) {
                     try {
                         /**
@@ -636,7 +788,10 @@ class Process {
                                 /**
                                  * @var IMonitor $monitor
                                  */
-                                $monitor->processing($pid, $worker->getTopic(), $info);
+                                $topic = $worker->getTopic();
+                                if ($topic) {
+                                    $monitor->processing($pid, $topic, $info);
+                                }
                             } catch (\Throwable $ex) {
                                 Utils::catchError($this->_logger, $ex);
                             }
@@ -658,6 +813,7 @@ class Process {
             });
         }
     }
+
 
     /**
      * 动态进程管理
@@ -744,8 +900,9 @@ class Process {
      * 展示进程状态
      *
      * @return string
+     * @throws \Exception
      */
-    public function showStatus(bool $return = false) {
+    public function showStatus() {
         //主进程信息
         $str = '---------------------------------------------' . $this->_processName . ' status-----------------------------------------------' . PHP_EOL;
         $str .= PHP_EOL . '#system' . PHP_EOL;
@@ -790,27 +947,29 @@ class Process {
 
         //header
         $str .= PHP_EOL . '#worker' . PHP_EOL;
-        $str .= ' --------------------------------------------------------------------------------------------------------------------------------------------------------------' . PHP_EOL;
-        $str .= ' ' . Utils::formatTablePrint(['Pid', 'Topic', 'Type', 'Queue', 'Status', 'Runtime', 'Idletime', 'AvgTime', 'Done', 'Failed', 'Ack', 'Reject', 'Now']) . PHP_EOL;
-        $str .= ' --------------------------------------------------------------------------------------------------------------------------------------------------------------' . PHP_EOL;
+        $str .= ' -----------------------------------------------------------------------------------------------------------------------------------------------------------------------' . PHP_EOL;
+        $str .= ' ' . Utils::formatTablePrint(['Pid', 'Topic', 'Type', 'Queue', 'Status', 'Runtime', 'Idletime', 'AvgTime', 'Done', 'Failed', 'Ack', 'Reject', 'Mem', 'Now']) . PHP_EOL;
+        $str .= ' -----------------------------------------------------------------------------------------------------------------------------------------------------------------------' . PHP_EOL;
         //子进程的信息
         foreach ($this->__workers as $pid => $worker) {
             try {
                 $info = $this->_readWorkerStatus($pid);
             } catch (\Throwable $ex) {
-                $info        = [];
-                $info['pid'] = $pid;
-                if ($worker->getTopic()) {
-                    $info['topic'] = $worker->getTopic()->getName();
-                }
+                $info         = [];
+                $info['pid']  = $pid;
                 $info['type'] = $worker->getType();
             }
             if ($info) {
+                if ($worker->getTopic()) {
+                    $info['topic']      = $worker->getTopic()->getName();
+                    $info['queue_size'] = $worker->getTopic()->getQueueSize();
+                }
+
                 $str .= ' ' . Utils::formatTablePrint([
                         $info['pid'] ?? '-',
-                        $info['topic'] ?? '-',
+                        $info['topic'] ?? ($info['name'] ?? '-'),
                         $info['type'] ?? '-',
-                        $worker->getTopic()->getQueueSize(),
+                        $info['queue_size'] ?? '-',
                         $info['status'] ?? '-',
                         $info['duration'] ?? '-',
                         $info['idle_time'] ?? '-',
@@ -819,6 +978,7 @@ class Process {
                         $info['failed'] ?? '-',
                         $info['ack'] ?? '-',
                         $info['reject'] ?? '-',
+                        $info['mem_usage'] ?? '-',
                         $info['now'] ?? '-',
                     ]) . PHP_EOL;
             }
@@ -834,7 +994,7 @@ class Process {
     protected function _saveMasterStatus() {
         try {
             $file = $this->__pid_dir . DIRECTORY_SEPARATOR . $this->__pid_status_file;
-            $info = $this->showStatus(true);
+            $info = $this->showStatus();
             @file_put_contents($file, "\n\n" . $info, FILE_APPEND);
             return $info;
         } catch (\Throwable $ex) {
@@ -877,11 +1037,12 @@ class Process {
             $info = $this->_readWorkerStatus($worker->getPID());
             if (false !== $info) {
                 $topic = $worker->getTopic();
-
-                $this->__topic_info[$topic->getName()]['done']   = ($this->__topic_info[$topic->getName()]['done'] ?? 0) + intval($info['done']);
-                $this->__topic_info[$topic->getName()]['failed'] = ($this->__topic_info[$topic->getName()]['failed'] ?? 0) + intval($info['failed']);
-                $this->__topic_info[$topic->getName()]['ack']    = ($this->__topic_info[$topic->getName()]['ack'] ?? 0) + intval($info['ack']);
-                $this->__topic_info[$topic->getName()]['reject'] = ($this->__topic_info[$topic->getName()]['reject'] ?? 0) + intval($info['reject']);
+                if ($topic) {
+                    $this->__topic_info[$topic->getName()]['done']   = ($this->__topic_info[$topic->getName()]['done'] ?? 0) + intval($info['done']);
+                    $this->__topic_info[$topic->getName()]['failed'] = ($this->__topic_info[$topic->getName()]['failed'] ?? 0) + intval($info['failed']);
+                    $this->__topic_info[$topic->getName()]['ack']    = ($this->__topic_info[$topic->getName()]['ack'] ?? 0) + intval($info['ack']);
+                    $this->__topic_info[$topic->getName()]['reject'] = ($this->__topic_info[$topic->getName()]['reject'] ?? 0) + intval($info['reject']);
+                }
             }
 
         } catch (\Throwable $ex) {

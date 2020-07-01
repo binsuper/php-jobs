@@ -4,13 +4,14 @@ namespace Gino\Jobs\Core;
 
 /**
  * 工具
- * 
+ *
  * @author Gino Huang <binsuper@126.com>
  */
 class Utils {
 
     /**
      * 创建目录
+     *
      * @param string $dir
      * @return bool
      */
@@ -20,15 +21,17 @@ class Utils {
 
     /**
      * 捕捉错误和异常
-     * @param \Gino\Jobs\Core\Logger $logger
-     * @param Exception|Error $ex
+     *
+     * @param Logger $logger
+     * @param \Exception|\Error $ex
      */
-    public static function catchError(\Gino\Jobs\Core\Logger $logger, $ex) {
-        $error = 'Error Type：' . get_class($ex) . PHP_EOL;
+    public static function catchError(Logger $logger, $ex) {
+        $error = PHP_EOL . 'Error Type：' . get_class($ex) . PHP_EOL;
         $error .= 'Error Code：' . $ex->getCode() . PHP_EOL;
         $error .= 'Error Msg：' . $ex->getMessage() . PHP_EOL;
+        $error .= 'Error File：' . $ex->getFile() . '(' . $ex->getLine() . ')' . PHP_EOL;
         $error .= 'Error Strace：' . $ex->getTraceAsString() . PHP_EOL;
-        $logger->log($error, \Gino\Jobs\Core\Logger::LEVEL_ERROR, 'error', true);
+        $logger->log($error, Logger::LEVEL_ERROR, 'error', true);
     }
 
     /**
@@ -51,13 +54,13 @@ class Utils {
     }
 
     /**
-     * 
+     *
      * @param array $columns
      * @return string
      */
     public static function formatTablePrint(array $columns) {
         $str  = '';
-        $rule = [10, 35, 10, 10, 10, 10, 10, 10, 8, 8, 8, 8, 15];
+        $rule = [10, 35, 10, 10, 10, 10, 10, 10, 8, 8, 8, 8, 8, 15];
         foreach ($columns as $i => $col) {
             $str .= str_pad($col, ($rule[$i] ?? 0) < strlen($col) ? strlen($col) + 2 : ($rule[$i] ?? 0));
         }

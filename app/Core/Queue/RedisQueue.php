@@ -255,12 +255,9 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
     }
 
     /**
-     * 遍历延迟队列的消息
-     * 如果时间到点，则将消息以参数的形式传入到回调函数中
-     *
-     * @param callable $callback callback($delayMessage)
+     * @inheritDoc
      */
-    public function scanDelayQueue($callback) {
+    public function scanDelayQueue($callback, $break_callback) {
         $slot_key = $this->__queue_name . '#slot';
         try {
             if (!isset($this->delay_slot)) {
@@ -284,8 +281,11 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
         }
         $slot             = $this->delay_slot;
         $this->delay_slot = $this->delay_slot + 1 >= 60 ? 0 : $this->delay_slot + 1;
+
+        var_dump('start: ' . $slot);
+
         //协程
-        go(function () use ($slot, $callback) {
+        go(function () use ($slot, $callback, $break_callback) {
             try {
                 $delay_queue = $this->__queue_name . '#' . $slot;
                 $count       = $this->__command(function () use ($delay_queue) {
@@ -297,6 +297,42 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
             }
             while ($count && $count-- > 0) {
                 try {
+
+                    $bodys = $this->__handler->lRange($delay_queue, -2000, -1);
+                    if (empty($bodys)) {
+                        break;
+                    }
+                    $this->__handler->lTrim($delay_queue, 0, 0 - count($bodys) - 1);
+                    $count -= count($bodys) + 1;
+
+                    $backlist = [];
+                    foreach ($bodys as $body) {
+                        $msg = new Delay\Message($body);
+                        if (!$msg->onTime()) { //没到点，重回队列
+                            $msg->roll();
+                            $backlist[] = (string)$msg;
+                            continue;
+                        }
+
+                        //到点了，往目标队列投递消息
+                        if (!call_user_func($callback, $msg)) {
+                            //失败，回到延迟队列
+                            $msg->roll();
+                            $backlist[] = (string)$msg;
+                        }
+                    }
+
+                    if (!empty($backlist)) {
+                        $this->__handler->lPush($delay_queue, ...$backlist);
+                    }
+
+                    // 返回false，则中断执行
+                    if (!call_user_func($break_callback, $count)) {
+                        break;
+                    }
+
+
+                    /*
                     $body = $this->__handler->rPop($delay_queue);
                     if (!$body) {
                         continue;
@@ -313,6 +349,12 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
                         $msg->roll();
                         $this->__handler->lPush($delay_queue, (string)$msg);
                     }
+
+                    // 返回false，则中断执行
+                    if (!call_user_func($break_callback, $count)) {
+                        break;
+                    }
+                    */
                 } catch (\Throwable $ex) {
                     Utils::catchError(Logger::getLogger(), $ex);
                 }

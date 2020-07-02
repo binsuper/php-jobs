@@ -282,8 +282,6 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
         $slot             = $this->delay_slot;
         $this->delay_slot = $this->delay_slot + 1 >= 60 ? 0 : $this->delay_slot + 1;
 
-        var_dump('start: ' . $slot);
-
         //协程
         go(function () use ($slot, $callback, $break_callback) {
             try {
@@ -331,30 +329,6 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
                         break;
                     }
 
-
-                    /*
-                    $body = $this->__handler->rPop($delay_queue);
-                    if (!$body) {
-                        continue;
-                    }
-                    $msg = new Delay\Message($body);
-                    if (!$msg->onTime()) { //没到点，重回队列
-                        $msg->roll();
-                        $this->__handler->lPush($delay_queue, (string)$msg);
-                        continue;
-                    }
-                    //到点了，往目标队列投递消息
-                    if (!call_user_func($callback, $msg)) {
-                        //失败，回到延迟队列
-                        $msg->roll();
-                        $this->__handler->lPush($delay_queue, (string)$msg);
-                    }
-
-                    // 返回false，则中断执行
-                    if (!call_user_func($break_callback, $count)) {
-                        break;
-                    }
-                    */
                 } catch (\Throwable $ex) {
                     Utils::catchError(Logger::getLogger(), $ex);
                 }

@@ -171,4 +171,18 @@ class Topic {
 
     }
 
+    /**
+     * 获取子进程最大执行的任务数
+     *
+     * @return int
+     */
+    public function getMaxExecuteJobs(): int {
+        // 优先去topic的health_size, 如果没有设置，则取process的queue_health_size
+        if (isset($this->__config['max_execute_jobs'])) {
+            return $this->__config['max_execute_jobs'];
+        }
+
+        return Config::getConfig('process', 'max_execute_jobs', 100);
+    }
+
 }

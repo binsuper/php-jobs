@@ -398,6 +398,9 @@ class Process {
                     });
                 }
                 try {
+                    //执行任务
+                    $job->run();
+
                     //更新子进程状态
                     if ($update_status_ticker < time() - 5) { //5秒间隔
                         $update_status_ticker = time();
@@ -422,14 +425,12 @@ class Process {
                             Utils::catchError($this->_logger, $ex);
                         }
                     }
-                    //执行任务
-                    $job->run();
                     //结束条件
                     $where = true;
                     if (self::STATUS_RUNNING !== $this->__status) {
                         $where = false;
                     } //执行任务数限制
-                    else if ($this->__max_exeucte_jobs > 0 && $job->doneCount() >= $this->__max_exeucte_jobs) {
+                    else if ($topic->getMaxExecuteJobs() > 0 && ($job->doneCount() + $job->failedCount()) >= $topic->getMaxExecuteJobs()) {
                         $where = false;
                     } //执行时间限制
                     else if ($this->__max_exeucte_time > 0 && $worker->getDuration() >= $this->__max_exeucte_time) {

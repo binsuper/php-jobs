@@ -2,6 +2,7 @@
 
 namespace Gino\Jobs\Action;
 
+use Gino\Jobs\Core\IFace\ICommand;
 use Gino\Jobs\Core\IFace\IQueueMessage;
 use Gino\Jobs\Core\IFace\IConsumer;
 use Gino\Jobs\Core\Logger;
@@ -11,7 +12,7 @@ use Gino\Jobs\Core\Queue\QueueMsgGroup;
  *
  * @author GinoHuang <binsuper@126.com>
  */
-class Test implements IConsumer {
+class Test implements IConsumer, ICommand {
 
     /**
      * 收到消息时执行
@@ -43,6 +44,13 @@ class Test implements IConsumer {
             }
             return true;
         }
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function execute(array $params) {
+        var_dump($params);
     }
 
 }

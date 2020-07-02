@@ -2,20 +2,22 @@
 
 namespace Gino\Jobs;
 
+use Gino\Jobs\Core\IFace\ICommand;
 use Gino\Jobs\Core\Logger;
 use Gino\Jobs\Core\Config;
 use Gino\Jobs\Core\Process;
+use Gino\Jobs\Core\Utils;
 
 /**
  * 控制台
- * 
+ *
  * @author Gino Huang <binsuper@126.com>
  */
 class Console {
 
     protected $_logger;
-    private $__run_opts = [];
-    private $__run_args = [];
+    private   $__run_opts = [];
+    private   $__run_args = [];
 
     public function __construct(array $config) {
         //检测配置信息
@@ -35,13 +37,13 @@ class Console {
 
     /**
      *  运行控制台
-     * 
+     *
      * @global array $argv
      */
     public function run() {
 
         if (!extension_loaded('swoole')) {
-            //die('I need swoole(php-extension)！！！');
+            //die('I need ext-swoole！！！');
         }
 
         //解析参数
@@ -83,6 +85,9 @@ class Console {
             case 'flush': //刷新日志
                 $this->flush();
                 break;
+            case 'exec': // 执行脚本
+                $this->executeCommand(array_slice($this->__run_args, 1));
+                break;
         }
     }
 
@@ -93,7 +98,7 @@ class Console {
         $txt = <<<HELP
 
 {#y}Usage:
-{##}  command [options] [arguments]
+{##}  [options] command [arguments]
 
 {#y}Options:
 {#g}  --no-delay        {##}disable delay jobs
@@ -107,6 +112,7 @@ class Console {
 {#g}  zombie            {##}try killing the zombie process
 {#g}  check             {##}check the configuration
 {#g}  flush             {##}flush log to log_file
+{#g}  exec [job]        {##}execute [job] command
 
 HELP;
         $rep = [
@@ -178,6 +184,7 @@ HELP;
 
     /**
      * 检查配置
+     *
      * @throws \Exception
      */
     public function checkConfig() {
@@ -257,6 +264,42 @@ HELP;
         $master_process = new Process();
         $master_process->flush();
         echo 'flush log...' . PHP_EOL;
+    }
+
+    /**
+     * 执行脚本
+     */
+    public function executeCommand($args) {
+        $command = $args[0] ?? false;
+        if (!$command) {
+            die('job name is empty' . PHP_EOL);
+        }
+
+        $class = '';
+
+        $topics_config = Config::getConfig('topics');
+        foreach ($topics_config as $topic_info) {
+            if ($topic_info['name'] === $command) {
+                $class = $topic_info['action'];
+                break;
+            }
+        }
+
+        if (empty($class)) {
+            die('job name is fnot found' . PHP_EOL);
+        }
+
+        if (!isset(class_implements($class)[ICommand::class])) {
+            die('job is not the command' . PHP_EOL);
+        }
+
+        try {
+            (new $class())->execute(array_slice($args, 1));
+        } catch (\Throwable $ex) {
+            Utils::catchError(Logger::getLogger());
+            die($ex->getMessage() . PHP_EOL);
+        }
+
     }
 
 }

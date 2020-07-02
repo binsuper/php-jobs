@@ -58,6 +58,7 @@ return array(
             'exchange'    => 'phpjob',
 //            'tpo'         => 100, // redis队列支持一次处理多条消息
             'health_size' => 10, //健康的队列长度, 超出后将开启动态进程
+            // 'max_execute_jobs' => 5, // 子进程最多执行任务数量(0为不限制)，超出后将重启进程，防止内存泄漏
         ],
         /* rabbitmq 增加死信队列
         [

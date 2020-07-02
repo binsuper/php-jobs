@@ -279,9 +279,16 @@ HELP;
 
         $topics_config = Config::getConfig('topics');
         foreach ($topics_config as $topic_info) {
-            if ($topic_info['name'] === $command) {
-                $class = $topic_info['action'];
-                break;
+            if (isset($topic_info['command'])) {
+                if ($topic_info['command'] === $command) {
+                    $class = $topic_info['action'];
+                    break;
+                }
+            } else {
+                if ($topic_info['name'] === $command) {
+                    $class = $topic_info['action'];
+                    break;
+                }
             }
         }
 

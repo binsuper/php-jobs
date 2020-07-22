@@ -303,7 +303,7 @@ HELP;
         try {
             (new $class())->execute(array_slice($args, 1));
         } catch (\Throwable $ex) {
-            Utils::catchError(Logger::getLogger());
+            Utils::catchError(Logger::getLogger(), $ex);
             die($ex->getMessage() . PHP_EOL);
         }
 

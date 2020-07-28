@@ -5,6 +5,7 @@ namespace Gino\Jobs\Core\Queue;
 
 
 use Gino\Jobs\Core\Exception\UnsupportException;
+use Gino\Jobs\Core\IFace\IQueueDriver;
 use Gino\Jobs\Core\IFace\IQueueMessage;
 
 class QueueMsgGroup extends \ArrayObject implements IQueueMessage {
@@ -74,6 +75,13 @@ class QueueMsgGroup extends \ArrayObject implements IQueueMessage {
     public function rejects(int $count = 0): int {
         $count > 0 && ($this->__reject_count += $count);
         return $this->__reject_count;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function getQueueDriver(): IQueueDriver {
+        throw new UnsupportException();
     }
 
 }

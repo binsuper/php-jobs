@@ -2,6 +2,7 @@
 
 namespace Gino\Jobs\Core\Queue;
 
+use Gino\Jobs\Core\IFace\IQueueDriver;
 use Gino\Jobs\Core\Queue\RabbitmqQueue;
 use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Channel\AMQPChannel;
@@ -11,24 +12,27 @@ use Gino\Jobs\Core\Utils;
 
 /**
  * 队列消息
+ *
  * @author GinoHuang <binsuper@126.com>
  */
 class RabbitmqMessage extends BaseQueueMessage {
 
     /**
      * 消息体
-     * @var AMQPMessage 
+     *
+     * @var AMQPMessage
      */
     protected $_body;
 
     /**
      * 信道
+     *
      * @var AMQPChannel
      */
     protected $_channel;
 
     /**
-     * @var bool 
+     * @var bool
      */
     private $__is_operation = false;
 
@@ -51,6 +55,7 @@ class RabbitmqMessage extends BaseQueueMessage {
 
     /**
      * 正确应答
+     *
      * @return bool
      * @throws ExitException
      */
@@ -72,6 +77,7 @@ class RabbitmqMessage extends BaseQueueMessage {
 
     /**
      * 拒绝消息
+     *
      * @param bool $requeue true表示将消息重新入队列，false则丢弃该消息
      * @return bool
      * @throws ExitException
@@ -90,6 +96,13 @@ class RabbitmqMessage extends BaseQueueMessage {
             }
         } while (--$try_times > 0);
         throw new ExitException();
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function getQueueDriver(): IQueueDriver {
+        return $this->_driver;
     }
 
 }

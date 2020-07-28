@@ -2,6 +2,7 @@
 
 namespace Gino\Jobs\Core\Queue;
 
+use Gino\Jobs\Core\IFace\IQueueDriver;
 use Gino\Jobs\Core\Queue\RedisQueue;
 
 /**
@@ -47,6 +48,13 @@ class RedisMessage extends BaseQueueMessage {
             return $this->_driver->repush($this);
         }
         return true;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function getQueueDriver(): IQueueDriver {
+        return $this->_driver;
     }
 
 }

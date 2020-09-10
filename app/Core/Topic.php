@@ -31,7 +31,7 @@ class Topic {
         $this->__min_workers       = $topic_info['min_workers'] ?? 1;
         $this->__max_workers       = $topic_info['max_workers'] ?? 1;
         $this->__topic_name        = $topic_info['name'];
-        $this->__alias_name        = $topic_info['alias'];
+        $this->__alias_name        = $topic_info['alias'] ?? '';
         $this->__action            = $topic_info['action'];
         $this->__trans_per_operate = $topic_info['tpo'] ?? 1;
     }

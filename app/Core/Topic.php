@@ -11,7 +11,8 @@ use Gino\Jobs\Core\Queue\Queue;
  */
 class Topic {
 
-    private $__topic_name;          //主题名称
+    private $__topic_name  = '';    //主题名称
+    private $__alias_name  = '';    //主题别名
     private $__config      = [];
     private $__min_workers = 1;     //最少进程数
     private $__max_workers = 1;     //最大进程数
@@ -30,6 +31,7 @@ class Topic {
         $this->__min_workers       = $topic_info['min_workers'] ?? 1;
         $this->__max_workers       = $topic_info['max_workers'] ?? 1;
         $this->__topic_name        = $topic_info['name'];
+        $this->__alias_name        = $topic_info['alias'];
         $this->__action            = $topic_info['action'];
         $this->__trans_per_operate = $topic_info['tpo'] ?? 1;
     }
@@ -41,6 +43,15 @@ class Topic {
      */
     public function getName() {
         return $this->__topic_name;
+    }
+
+    /**
+     * 获取别名
+     *
+     * @return string
+     */
+    public function getAlias() {
+        return $this->__alias_name;
     }
 
     /**

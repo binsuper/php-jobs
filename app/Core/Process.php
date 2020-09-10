@@ -16,7 +16,7 @@ use Swoole\Timer;
  */
 class Process {
 
-    const VERSION        = '1.0.14';
+    const VERSION        = '1.0.18';
     const STATUS_RUNNING = 'running';   //运行中
     const STATUS_WAIT    = 'wait';      //等待所有子进程平滑结束
     const STATUS_STOP    = 'stop';      //运行中
@@ -721,42 +721,6 @@ class Process {
             @\Swoole\Process::kill($this->__pid, SIGUSR2);
         });
 
-        //处理延迟任务
-        /*
-        if ($this->__opt_delay_enable) {
-            \Swoole\Timer::tick(1000, function ($timer_id) {
-                try {
-                    if (empty($this->__topics)) {
-                        \Swoole\Timer::clear($timer_id);
-                        return;
-                    }
-                    try {
-                        $queue = Queue\Queue::getDelayQueue();
-                    } catch (\Throwable $ex) {
-                        \Swoole\Timer::clear($timer_id);
-                        return;
-                    }
-                    if (!$queue) {
-                        \Swoole\Timer::clear($timer_id);
-                        return;
-                    }
-                    if (!($queue instanceof IQueueDelay)) { //不支持延迟队列
-                        \Swoole\Timer::clear($timer_id);
-                        $queue->close();
-                        unset($queue);
-                        return;
-                    }
-                    $queue->scanDelayQueue(function (DelayMessage $msg) use ($queue) {
-                        return $queue->pushTarget($msg->getTargetName(), $msg->getPayload()) ? true : false;
-                    });
-                    unset($queue);
-                } catch (\Throwable $ex) {
-                    Utils::catchError($this->_logger, $ex);
-                }
-            });
-        }
-        */
-
         //定期检测
         if (!empty($this->__monitors)) {
             Timer::tick($this->__monitor_interval, function () {
@@ -814,7 +778,6 @@ class Process {
             });
         }
     }
-
 
     /**
      * 动态进程管理
@@ -953,6 +916,9 @@ class Process {
         $str .= ' -----------------------------------------------------------------------------------------------------------------------------------------------------------------------' . PHP_EOL;
         //子进程的信息
         foreach ($this->__workers as $pid => $worker) {
+            /**
+             * @var Worker $worker
+             */
             try {
                 $info = $this->_readWorkerStatus($pid);
             } catch (\Throwable $ex) {
@@ -963,12 +929,13 @@ class Process {
             if ($info) {
                 if ($worker->getTopic()) {
                     $info['topic']      = $worker->getTopic()->getName();
+                    $info['alias']      = $worker->getTopic()->getAlias();
                     $info['queue_size'] = $worker->getTopic()->getQueueSize();
                 }
 
                 $str .= ' ' . Utils::formatTablePrint([
                         $info['pid'] ?? '-',
-                        $info['topic'] ?? ($info['name'] ?? '-'),
+                        !empty($info['alias']) ? $info['alias'] : ($info['topic'] ?? ($info['name'] ?? '-')),
                         $info['type'] ?? '-',
                         $info['queue_size'] ?? '-',
                         $info['status'] ?? '-',

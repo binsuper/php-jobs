@@ -62,7 +62,7 @@ class DefaultMonitor implements IMonitor {
 
         // 记录名称
         if (isset($this->except_msg[$topic_name])) {
-            $this->except_msg[$topic_name]['topic'] = $topic_name;
+            $this->except_msg[$topic_name]['topic'] = $topic->getAlias() ?: $topic_name;
         }
 
 

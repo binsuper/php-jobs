@@ -32,6 +32,7 @@ class Process {
     private $__workers         = []; //子进程列表
     private $__topics          = [];
     private $__topic_info      = []; // 主题信息
+    private $__events          = []; // 事件
 
     /**
      * 进程用户
@@ -232,6 +233,9 @@ class Process {
      * 退出主进程
      */
     protected function _exit() {
+        // onStop
+        $this->_notify('stop', $this);
+
         @unlink($this->__pid_file);
         @unlink($this->__pid_info_file);
         $this->_logger->log('master process exit', Logger::LEVEL_INFO, $this->__process_log_file);
@@ -312,6 +316,10 @@ class Process {
      */
     public function start(array $run_opts = []) {
         $this->_init($run_opts);
+
+        // onStart
+        $this->_notify('start', $this);
+
         $this->_registSignal();
         $this->_registTopics();
         $this->_registTimer();
@@ -347,7 +355,9 @@ class Process {
 
             $this->__topics[] = $topic;
 
-            $this->__topic_info[$topic->getName()] = [];
+            $this->__topic_info[$topic->getName()] = [
+                'show_name' => $topic->getShowName()
+            ];
         }
     }
 
@@ -459,6 +469,14 @@ class Process {
             if ($pid) {
                 $this->__workers[$pid] = $worker;
             }
+
+            // onWorkerStart
+            try {
+                $this->_notify('worker_start', $worker);
+            } catch (\Throwable $ex) {
+                Utils::catchError($this->_logger, $ex);
+            }
+
         } catch (\Exception $ex) {
             Utils::catchError($this->_logger, $ex);
         } catch (\Throwable $ex) {
@@ -660,6 +678,13 @@ class Process {
 
                     // 清理状态文件
                     $this->_saveWorkerStatus([], true, $pid);
+
+                    // onWorkerStop
+                    try {
+                        $this->_notify('worker_stop', $worker);
+                    } catch (\Throwable $ex) {
+                        Utils::catchError($this->_logger, $ex);
+                    }
 
                     //主进程正常运行且子进程是静态类型，则重启该进程
                     if ($this->__status == self::STATUS_RUNNING && $worker && $worker->getType() === Worker::TYPE_STATIC) {
@@ -901,7 +926,7 @@ class Process {
         foreach ($this->__topic_info as $topic_name => $info) {
             $str .= ' ' . Utils::formatTablePrint([
                     '',
-                    $topic_name ?? '-',
+                    $info['show_name'] ?? ($topic_name ?? '-'),
                     $info['done'] ?? '-',
                     $info['failed'] ?? '-',
                     $info['ack'] ?? '-',
@@ -1025,6 +1050,62 @@ class Process {
         $data          = $this->getMasterInfo();
         $data['flush'] = time();
         $this->__setMasterInfo($data);
+    }
+
+    /**
+     * 监听主进程启动后（子进程启动前）事件
+     *
+     * @param $callback
+     */
+    public function onStart($callback) {
+        $this->__events['start'][] = $callback;
+    }
+
+    /**
+     * 监听主进程结束前（子进程已退出）的事件
+     *
+     * @param $callback
+     */
+    public function onStop($callback) {
+        $this->__events['stop'][] = $callback;
+    }
+
+    /**
+     * 监听子进程启动后事件
+     *
+     * @param $callback
+     */
+    public function onWorkerStart($callback) {
+        $this->__events['worker_start'][] = $callback;
+    }
+
+    /**
+     * 监听子进程结束后的事件
+     *
+     * @param $callback
+     */
+    public function onWorkerStop($callback) {
+        $this->__events['worker_stop'][] = $callback;
+    }
+
+    /**
+     * 通知
+     *
+     * @param string $name 事件名
+     * @param mixed ...$params
+     * @throws \Throwable
+     */
+    protected function _notify(string $name, ...$params) {
+        try {
+            $events = $this->__events[$name] ?? [];
+            foreach ($events as $evt) {
+                call_user_func($evt, ...$params);
+            }
+        } catch (\Throwable $ex) {
+            Utils::catchError($this->_logger, $ex);
+            throw $ex;
+        }
+
     }
 
 }

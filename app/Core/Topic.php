@@ -55,6 +55,13 @@ class Topic {
     }
 
     /**
+     * 获取用于展示的名称
+     */
+    public function getShowName(): string {
+        return $this->getAlias() ?: $this->getName();
+    }
+
+    /**
      * 获取配置信息
      *
      * @return array
@@ -66,7 +73,7 @@ class Topic {
     /**
      * 管理静态进程
      *
-     * @param function $callback
+     * @param callable $callback
      */
     public function execStatic($callback) {
         //创建最小数量的进程

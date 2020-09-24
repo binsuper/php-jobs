@@ -124,11 +124,24 @@ HELP;
     }
 
     /**
+     * 获取主进程
+     *
+     * @return Process|null
+     */
+    public function process() {
+        static $process = null;
+        if ($process == NULL) {
+            $process = new Process();
+        }
+        return $process;
+    }
+
+    /**
      * 启动进程
      */
     public function start(array $run_opts = []) {
         $this->checkConfig();
-        $master_process = new Process();
+        $master_process = $this->process();
         if (isset($run_opts['no-delay'])) {
             $master_process->noDelay();
         }

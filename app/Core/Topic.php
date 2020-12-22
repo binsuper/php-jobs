@@ -26,6 +26,13 @@ class Topic {
      */
     private $__trans_per_operate = 1;
 
+    /**
+     * 每次处理的时间间隔（毫秒）
+     *
+     * @var int
+     */
+    private $__interval = 0;
+
     public function __construct(array $topic_info) {
         $this->__config            = $topic_info;
         $this->__min_workers       = $topic_info['min_workers'] ?? 1;
@@ -34,6 +41,7 @@ class Topic {
         $this->__alias_name        = $topic_info['alias'] ?? '';
         $this->__action            = $topic_info['action'];
         $this->__trans_per_operate = $topic_info['tpo'] ?? 1;
+        $this->__interval          = $topic_info['interval'] ?? 0;
     }
 
     /**
@@ -150,14 +158,17 @@ class Topic {
     public function newJob() {
         $queue = Queue::getQueue($this);
         $job   = new $this->__action();
-        return new Jobs($queue, $job, $this->getTPO());
+        $obj   = new Jobs($queue, $job, $this->getTPO());
+        return $obj;
     }
 
     /**
      * 投递消息
      *
      * @param string $msg
+     *
      * @return bool
+     * @throws \Exception
      */
     public function pushMsg(string $msg): bool {
         $queue = Queue::getQueue($this, false); //非消费者队列
@@ -171,6 +182,15 @@ class Topic {
      */
     public function getTPO(): int {
         return $this->__trans_per_operate;
+    }
+
+    /**
+     * 每次处理的时间间隔（毫秒）
+     *
+     * @return int
+     */
+    public function getInterval(): int {
+        return $this->__interval;
     }
 
 

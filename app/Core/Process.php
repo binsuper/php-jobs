@@ -157,6 +157,7 @@ class Process {
      * 初始化
      *
      * @param array $run_opt 运行时配置
+     *
      * @throws \RuntimeException
      */
     protected function _init(array $run_opt = []) {
@@ -259,6 +260,7 @@ class Process {
      * 设置主进程的信息
      *
      * @param array $data
+     *
      * @throws \RuntimeException
      */
     private function __setMasterInfo(array $data) {
@@ -272,6 +274,7 @@ class Process {
      * 获取主进程的信息
      *
      * @param string $key
+     *
      * @return array|mixed
      * @throws \RuntimeException
      */
@@ -366,6 +369,7 @@ class Process {
      *
      * @param \Gino\Jobs\Core\Topic $topic
      * @param string $child_type 子进程类型
+     *
      * @return int 成功返回子进程的ID，失败返回false
      */
     protected function _forkWorker(Topic $topic, string $child_type) {
@@ -452,6 +456,9 @@ class Process {
                     //当长时间处于空闲状态，则让进程进入半休眠
                     if ($where && $job->idleTime() <= $this->__max_exeucte_time && $job->idleTime() > 30) {
                         sleep(3);
+                    } // 执行的时间间隔
+                    else if ($where && $topic->getInterval() > 0) {
+                        usleep($topic->getInterval() * 1000);
                     }
                 } catch (ExitException $ex) {
                     $where = false;
@@ -1093,6 +1100,7 @@ class Process {
      *
      * @param string $name 事件名
      * @param mixed ...$params
+     *
      * @throws \Throwable
      */
     protected function _notify(string $name, ...$params) {

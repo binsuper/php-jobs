@@ -119,6 +119,7 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
      * @param array $config
      * @param string $queue_name
      * @param string $more_config
+     *
      * @return IQueueDriver 失败返回false
      * @throws Exception
      */
@@ -169,6 +170,7 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
      * 进行连接
      *
      * @param int $max_retry_tiems 尝试重连次数
+     *
      * @return bool 是否连接成功
      * @throws \Exception
      */
@@ -274,6 +276,7 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
      * 执行命令
      *
      * @param callable $callback
+     *
      * @return mixed
      */
     private function __command($callback) {
@@ -372,6 +375,7 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
      * 获取指定队列的长度
      *
      * @param string $queue_name
+     *
      * @return int
      */
     public function getQueueSize(string $queue_name): int {
@@ -397,6 +401,7 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
      * 往队列中投递消息
      *
      * @param string $body
+     *
      * @return bool
      */
     public function push(string $body): bool {

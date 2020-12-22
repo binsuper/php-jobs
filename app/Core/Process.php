@@ -16,7 +16,7 @@ use Swoole\Timer;
  */
 class Process {
 
-    const VERSION        = '1.0.18';
+    const VERSION        = '1.1.1';
     const STATUS_RUNNING = 'running';   //运行中
     const STATUS_WAIT    = 'wait';      //等待所有子进程平滑结束
     const STATUS_STOP    = 'stop';      //运行中
@@ -397,7 +397,7 @@ class Process {
                     $this->__status            = $data['status'];
                     $this->__status_updatetime = microtime(true);
                     //flush log
-                    go(function () use ($data) {
+                    \Swoole\Coroutine::create(function () use ($data) {
                         $flush = $data['flush'] ?? false;
                         if (false !== $flush && time() - $flush <= 30) {
                             if (!isset($this->__flush_time) || $this->__flush_time < $flush) {
@@ -508,7 +508,7 @@ class Process {
                         $this->__status            = $data['status'];
                         $this->__status_updatetime = microtime(true);
                         //flush log
-                        go(function () use ($data) {
+                        \Swoole\Coroutine::create(function () use ($data) {
                             $flush = $data['flush'] ?? false;
                             if (false !== $flush && time() - $flush <= 30) {
                                 if (!isset($this->__flush_time) || $this->__flush_time < $flush) {

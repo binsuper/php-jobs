@@ -194,7 +194,7 @@ class Logger implements ILogger {
 
                 //文件加锁
                 if (!isset($this->__sw_locks[$filename])) {
-                    $this->__sw_locks[$filename] = new \Swoole\Lock(SWOOLE_FILELOCK, $filename);
+                    $this->__sw_locks[$filename] = new \Swoole\Lock(SWOOLE_MUTEX, $filename);
                 }
                 $last_lock = $this->__sw_locks[$filename];
                 if (!$this->__sw_locks[$filename]->trylock()) {

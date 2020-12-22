@@ -283,7 +283,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
         $this->delay_slot = $this->delay_slot + 1 >= 60 ? 0 : $this->delay_slot + 1;
 
         //协程
-        go(function () use ($slot, $callback, $break_callback) {
+        \Swoole\Coroutine::create(function () use ($slot, $callback, $break_callback) {
             try {
                 $delay_queue = $this->__queue_name . '#' . $slot;
                 $count       = $this->__command(function () use ($delay_queue) {

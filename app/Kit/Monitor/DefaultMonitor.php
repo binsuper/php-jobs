@@ -93,7 +93,7 @@ class DefaultMonitor implements IMonitor {
                     $msg .= "\t• 消息处理异常，失败(Failed)的数量：{$failed}，拒绝(Reject)的数量：{$reject}" . PHP_EOL;
                 }
 
-                go(function () use ($msg) {
+                \Swoole\Coroutine::create(function () use ($msg) {
                     Notify::all($msg);
                 });
             }

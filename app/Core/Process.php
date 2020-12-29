@@ -379,6 +379,7 @@ class Process {
             //运行内容
             $this->_checkMpid($worker);
             $this->__setProcessName('worker' . $this->_processName);
+            $this->_logger;
             try {
                 $job = $topic->newJob();
                 if (!$job) {
@@ -722,7 +723,7 @@ class Process {
                     }
                     //释放worker资源
                     if ($worker) {
-                        $worker->free();
+                        $worker->exitWorker();
                     }
                     //主进程状态为WAIT且所有子进程退出, 则主进程安全退出
                     if (empty($this->__workers) && $this->__status == self::STATUS_WAIT) {

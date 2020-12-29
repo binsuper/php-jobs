@@ -78,7 +78,7 @@ class Worker {
      */
     public function exitWorker() {
         $this->free();
-        $this->__process->exit();
+        @$this->__process->exit();
         $this->__process = null;
     }
 

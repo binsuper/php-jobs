@@ -202,7 +202,7 @@ class Logger implements ILogger {
                 }
                 //文件大小超出限制，则切割日志文件
                 clearstatcache(true, $filename);
-                if (@filesize($filename) >= ($this->logfile_max_size * 1024 * 1024)) {
+                if (file_exists($filename) && @filesize($filename) >= ($this->logfile_max_size * 1024 * 1024)) {
                     $this->_rotateFiles($filename);
                 }
                 //解锁

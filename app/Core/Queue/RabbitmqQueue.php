@@ -7,6 +7,7 @@ use \Gino\Jobs\Core\IFace\{
     IQueueDriver,
     IQueueProducer
 };
+use PhpAmqpLib\Connection\AMQPSSLConnection;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
@@ -41,7 +42,7 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
 
     /**
      *
-     * @var AMQPStreamConnection
+     * @var AMQPStreamConnection | AMQPSSLConnection
      */
     private $__conn;
 
@@ -53,19 +54,19 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
 
     /**
      *
-     * @var 交换器名称
+     * @var string 交换器名称
      */
     private $__exchange_name;
 
     /**
      *
-     * @var 队列名称
+     * @var string 队列名称
      */
     private $__queue_name;
 
     /**
      *
-     * @var 路由名
+     * @var string 路由名
      */
     private $__binding_key;
 
@@ -114,6 +115,20 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
     private $__dlrk = false;
 
     /**
+     * 如果不为false，将使用AMQPSSLConnection方式连接
+     *
+     * @var array
+     */
+    private $__ssl = [];
+
+    /**
+     * 连接参数
+     *
+     * @var array
+     */
+    private $__options = [];
+
+    /**
      * 获取连接
      *
      * @param array $config
@@ -148,6 +163,8 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
         $this->__is_consumer   = $config['is_consumer'] ?? false;
         $this->__dlx           = $config['dlx'] ?? '';
         $this->__dlrk          = $config['dlrk'] ?? '';
+        $this->__ssl           = $config['ssl'] ?? [];
+        $this->__options       = $config['options'] ?? false;
 
         if ((!empty($this->__dlx) ^ !empty($this->__dlrk)) != 0) {
             if (empty($this->__dlx) || empty($this->__dlrk)) {
@@ -196,7 +213,21 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
             while ($conntection_found && $conntection_attempts < $max_retry_tiems) {
                 $conntection_attempts++;
                 try {
-                    $this->__conn = new AMQPStreamConnection($this->__host, $this->__port, $this->__user, $this->__pass, $this->__vhost);
+                    if (empty($this->__ssl)) {
+                        $this->__conn = new AMQPStreamConnection($this->__host, $this->__port, $this->__user, $this->__pass, $this->__vhost,
+                            $this->__options['insist'] ?? false,
+                            $this->__options['login_method'] ?? 'AMQPLAIN',
+                            $this->__options['login_response'] ?? null,
+                            $this->__options['locale'] ?? 'en_US',
+                            $this->__options['connection_timeout'] ?? 3,
+                            $this->__options['read_write_timeout'] ?? 3,
+                            null,
+                            $this->__options['keepalive'] ?? false,
+                            $this->__options['heartbeat'] ?? 0
+                        );
+                    }else {
+                        $this->__conn = new AMQPSSLConnection($this->__host, $this->__port, $this->__user, $this->__pass, $this->__vhost, $this->__ssl, $this->__options);
+                    }
 
                     try {
                         $this->__channel = $this->__conn->channel();

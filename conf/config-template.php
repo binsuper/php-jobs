@@ -36,6 +36,8 @@ return array(
           'pass'             => '123456',
           'vhost'            => '/',
           'qos'              => 1
+          'ssl' => ['verify_peer_name' => false, 'verify_peer' => false], // 使用ssl连接MQ，并无视证书要求
+          'options' => ['locale' => 'zh_CN'] // 配置项
          */
     ],
     //任务模块

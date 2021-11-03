@@ -77,27 +77,38 @@ class DefaultMonitor implements IMonitor {
 
         if (!empty($this->except_msg)) {
             foreach ($this->except_msg as $node) {
-                $topic_name = $node['topic'];
-                $queue_size = $node['queue_size'] ?? false;
-                $avg_time   = $node['avg_time'] ?? 0;
-                $failed     = $node['failed'] ?? 0;
-                $reject     = $node['reject'] ?? 0;
-
-                $msg = '时间：' . date('Y-m-d H:i:s') . PHP_EOL;
-                $msg .= "主题：{$topic_name}" . PHP_EOL;
-                $msg .= '异常：' . PHP_EOL;
-                if ($queue_size) {
-                    $msg .= "\t• 消息积压太多了（数量：{$queue_size}), 平均处理时长：{$avg_time}" . PHP_EOL;
-                }
-                if ($failed > 0 || $reject > 0) {
-                    $msg .= "\t• 消息处理异常，失败(Failed)的数量：{$failed}，拒绝(Reject)的数量：{$reject}" . PHP_EOL;
-                }
+                $msg = $this->buildReportMsg($node);
 
                 \Swoole\Coroutine::create(function () use ($msg) {
                     Notify::all($msg);
                 });
             }
         }
+    }
+
+    /**
+     * @param array $node
+     *
+     * @return string
+     */
+    protected function buildReportMsg(array $node): string {
+        $topic_name = $node['topic'];
+        $queue_size = $node['queue_size'] ?? false;
+        $avg_time   = $node['avg_time'] ?? 0;
+        $failed     = $node['failed'] ?? 0;
+        $reject     = $node['reject'] ?? 0;
+
+        $msg = '时间：' . date('Y-m-d H:i:s') . PHP_EOL;
+        $msg .= "主题：{$topic_name}" . PHP_EOL;
+        $msg .= '异常：' . PHP_EOL;
+        if ($queue_size) {
+            $msg .= "\t• 消息积压太多了（数量：{$queue_size}), 平均处理时长：{$avg_time}" . PHP_EOL;
+        }
+        if ($failed > 0 || $reject > 0) {
+            $msg .= "\t• 消息处理异常，失败(Failed)的数量：{$failed}，拒绝(Reject)的数量：{$reject}" . PHP_EOL;
+        }
+
+        return $msg;
     }
 
 }

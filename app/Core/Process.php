@@ -810,6 +810,27 @@ class Process {
 
             });
         }
+
+        //每30分钟对子进程验活
+        Timer::tick(1800000, function () {
+            //子进程的信息
+            foreach ($this->__workers as $pid => $worker) {
+                /**
+                 * @var Worker $worker
+                 */
+                try {
+                    $info = $this->_readWorkerStatus($pid);
+                } catch (\Throwable $ex) {
+                    continue;
+                }
+                if ($info && !empty($info['now'])) {
+                    if (time() - strtotime($info['now']) > 1800) { // 半小时没有更新状态
+                        $this->_logger->log("worker exception, PID={$pid}, kill it now", Logger::LEVEL_ERROR, $this->__process_log_file, true);
+                        @\Swoole\Process::kill($pid, SIGKILL); // 强制杀死进程
+                    }
+                }
+            }
+        });
     }
 
     /**

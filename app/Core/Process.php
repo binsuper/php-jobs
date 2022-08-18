@@ -909,7 +909,7 @@ class Process {
      */
     protected function _checkMpid(Worker $worker) {
         if (!\Swoole\Process::kill($this->__pid, 0)) {
-            $this->_logger->log("Master process exited, I [{$worker['pid']}] also quit\n");
+            $this->_logger->log("Master process exited, I [{$worker->getPID()}] also quit\n");
             $worker->exitWorker();
         }
     }

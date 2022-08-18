@@ -241,6 +241,8 @@ class Process {
         @unlink($this->__pid_info_file);
         $this->_logger->log('master process exit', Logger::LEVEL_INFO, $this->__process_log_file);
         $this->_logger->flush();
+
+        \Swoole\Timer::clearAll();
         sleep(1);
         exit();
     }

@@ -14,7 +14,8 @@
         "phpmailer/phpmailer": "^6.5",
         "swoole/ide-helper": "^4.4",
         "ext-posix": "*",
-        "ext-json": "*"
+        "ext-json": "*",
+        "ext-swoole": "^4.4"
     },
     "autoload": {
         "psr-4": {

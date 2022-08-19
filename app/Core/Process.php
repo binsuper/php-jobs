@@ -124,20 +124,20 @@ class Process {
             die('config process.data_dir must be set' . PHP_EOL);
         }
 
-        $this->_logger             = Logger::getLogger();
-        $this->__user              = $config['user'] ?? '';
-        $this->__pid_dir           = $config['data_dir'];
-        $this->__pid_file          = $this->__pid_dir . DIRECTORY_SEPARATOR . $this->__pid_file;
-        $this->__pid_info_file     = $this->__pid_dir . DIRECTORY_SEPARATOR . $this->__pid_info_file;
-        $this->__worker_info_dir   = $this->__pid_dir . DIRECTORY_SEPARATOR . 'worker';
-        $this->__process_log_file  = strtr($config['process_log_file'] ?? 'process.log', ['.log' => '']);
-        $this->_processName        = $config['process_name'] ?? ' :php-jobs';
-        $this->__max_exeucte_time  = $config['max_execute_time'] ?? 0;
-        $this->__max_exeucte_jobs  = $config['max_execute_jobs'] ?? 0;
+        $this->_logger = Logger::getLogger();
+        $this->__user = $config['user'] ?? '';
+        $this->__pid_dir = $config['data_dir'];
+        $this->__pid_file = $this->__pid_dir . DIRECTORY_SEPARATOR . $this->__pid_file;
+        $this->__pid_info_file = $this->__pid_dir . DIRECTORY_SEPARATOR . $this->__pid_info_file;
+        $this->__worker_info_dir = $this->__pid_dir . DIRECTORY_SEPARATOR . 'worker';
+        $this->__process_log_file = strtr($config['process_log_file'] ?? 'process.log', ['.log' => '']);
+        $this->_processName = $config['process_name'] ?? ' :php-jobs';
+        $this->__max_exeucte_time = $config['max_execute_time'] ?? 0;
+        $this->__max_exeucte_jobs = $config['max_execute_jobs'] ?? 0;
         $this->__dynamic_idle_time = $config['dynamic_idle_time'] ?? 0;
         $this->__queue_health_size = $config['queue_health_size'] ?? 0;
-        $this->__monitor_interval  = $config['monitor_interval'] ?? 60000;
-        $this->__delay_queue_name  = Config::getConfig('queue', 'delay_queue_name', '');
+        $this->__monitor_interval = $config['monitor_interval'] ?? 60000;
+        $this->__delay_queue_name = Config::getConfig('queue', 'delay_queue_name', '');
         Utils::mkdir($this->__pid_dir);
         Utils::mkdir($this->__worker_info_dir);
 
@@ -183,7 +183,7 @@ class Process {
             $user = $group = '';
             if (function_exists('posix_getpwuid') && function_exists('posix_getuid')) {
                 $uinfo = posix_getpwuid(posix_getuid());
-                $user  = $uinfo ? $uinfo['name'] : '';
+                $user = $uinfo ? $uinfo['name'] : '';
             }
             if (function_exists('posix_getgrgid') && function_exists('posix_getgid')) {
                 $ginfo = posix_getgrgid(posix_getgid());
@@ -244,7 +244,10 @@ class Process {
 
         \Swoole\Timer::clearAll();
         sleep(1);
-        exit();
+        try {
+            exit();
+        } catch (\Swoole\ExitException $ex) {
+        }
     }
 
     /**
@@ -349,7 +352,7 @@ class Process {
                 }
                 $pid = $this->_forkWorker($topic, Worker::TYPE_STATIC);
                 if (!$pid) {
-                    $errno  = swoole_errno();
+                    $errno = swoole_errno();
                     $errmsg = swoole_strerror($errno);
                     $this->_logger->log("worker start failed, it will exited later; \nERRNO: {$errno}\nERRMSG: {$errmsg}", Logger::LEVEL_ERROR, 'error');
                     $this->waitWorkers();
@@ -400,8 +403,8 @@ class Process {
             do {
                 //每100毫秒检测一次主进程的运行状态
                 if (microtime(true) - ($this->__status_updatetime ?? 0) > 0.01) {
-                    $data                      = $this->getMasterInfo();
-                    $this->__status            = $data['status'];
+                    $data = $this->getMasterInfo();
+                    $this->__status = $data['status'];
                     $this->__status_updatetime = microtime(true);
                     //flush log
                     \Swoole\Coroutine::create(function () use ($data) {
@@ -514,8 +517,8 @@ class Process {
                 // 定时器 - 检测主进程的运行状态
                 Timer::tick(500, function ($timer_id) {
                     try {
-                        $data                      = $this->getMasterInfo();
-                        $this->__status            = $data['status'];
+                        $data = $this->getMasterInfo();
+                        $this->__status = $data['status'];
                         $this->__status_updatetime = microtime(true);
                         //flush log
                         \Swoole\Coroutine::create(function () use ($data) {
@@ -713,7 +716,7 @@ class Process {
                         }
 
                         if (!$new_pid) { //重启失败
-                            $errno  = swoole_errno();
+                            $errno = swoole_errno();
                             $errmsg = swoole_strerror($errno);
                             $this->_logger->log("worker process restart failed, it will exited later; \nERRNO: {$errno}\nERRMSG: {$errmsg}", Logger::LEVEL_ERROR, 'error', true);
                             $this->waitWorkers();
@@ -885,7 +888,7 @@ class Process {
      */
     public function waitWorkers() {
         $this->__status = self::STATUS_WAIT;
-        $data           = $this->getMasterInfo();
+        $data = $this->getMasterInfo();
         $data['status'] = $this->__status;
         $this->__setMasterInfo($data);
         $this->_logger->log('wait workers quit', Logger::LEVEL_INFO, $this->__process_log_file, true);
@@ -978,14 +981,14 @@ class Process {
             try {
                 $info = $this->_readWorkerStatus($pid);
             } catch (\Throwable $ex) {
-                $info         = [];
-                $info['pid']  = $pid;
+                $info = [];
+                $info['pid'] = $pid;
                 $info['type'] = $worker->getType();
             }
             if ($info) {
                 if ($worker->getTopic()) {
-                    $info['topic']      = $worker->getTopic()->getName();
-                    $info['alias']      = $worker->getTopic()->getAlias();
+                    $info['topic'] = $worker->getTopic()->getName();
+                    $info['alias'] = $worker->getTopic()->getAlias();
                     $info['queue_size'] = $worker->getTopic()->getQueueSize();
                 }
 
@@ -1062,9 +1065,9 @@ class Process {
             if (false !== $info) {
                 $topic = $worker->getTopic();
                 if ($topic) {
-                    $this->__topic_info[$topic->getName()]['done']   = ($this->__topic_info[$topic->getName()]['done'] ?? 0) + intval($info['done']);
+                    $this->__topic_info[$topic->getName()]['done'] = ($this->__topic_info[$topic->getName()]['done'] ?? 0) + intval($info['done']);
                     $this->__topic_info[$topic->getName()]['failed'] = ($this->__topic_info[$topic->getName()]['failed'] ?? 0) + intval($info['failed']);
-                    $this->__topic_info[$topic->getName()]['ack']    = ($this->__topic_info[$topic->getName()]['ack'] ?? 0) + intval($info['ack']);
+                    $this->__topic_info[$topic->getName()]['ack'] = ($this->__topic_info[$topic->getName()]['ack'] ?? 0) + intval($info['ack']);
                     $this->__topic_info[$topic->getName()]['reject'] = ($this->__topic_info[$topic->getName()]['reject'] ?? 0) + intval($info['reject']);
                 }
             }
@@ -1078,7 +1081,7 @@ class Process {
      * 刷新日志
      */
     public function flush() {
-        $data          = $this->getMasterInfo();
+        $data = $this->getMasterInfo();
         $data['flush'] = time();
         $this->__setMasterInfo($data);
     }

@@ -1,5 +1,8 @@
 <?php
 
+use Gino\Jobs\Core\Logger;
+use Gino\Jobs\Core\Utils;
+
 define('GINO_JOBS_ROOT_PATH', __DIR__);
 define('GINO_JOBS_CONFIG_PATH', GINO_JOBS_ROOT_PATH . '/conf/config.php');
 
@@ -25,3 +28,10 @@ $console->process()->onWorkerStop(function () {
 });
 
 $console->run();
+
+// swoole4.6 以上版本，接入laravel框架时需要加入下面的异常处理，才不会导致主进程挂掉, Swoole\Event::rshutdown(): Event::wait() in shutdown function is deprecated
+/*
+set_error_handler(function ($level, $message, $file = '', $line = 0, $context = []) {
+    Utils::catchError(Logger::getLogger(), new \ErrorException($message, 0, $level, $file, $line));
+});
+*/

@@ -15,7 +15,7 @@ use Gino\Jobs\Core\Queue\QueueMsgGroup;
 class Test implements IConsumer, ICommand {
 
     /**
-     * 收到消息时执行
+     * 收到消息时执行q
      *
      * @param IQueueMessage $msg
      * @return bool 执行成功返回true, 执行失败返回false

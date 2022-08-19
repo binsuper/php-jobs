@@ -228,6 +228,9 @@ class Process {
         $this->__setProcessName('master' . $this->_processName);
 
         $this->__begin_time = time();
+
+        // 关闭携程
+        \Swoole\Timer::set(['enable_coroutine' => false]);
     }
 
     /**

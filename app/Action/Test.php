@@ -34,9 +34,6 @@ class Test implements IConsumer, ICommand {
             return true;
         } else {
             Logger::getLogger()->log('receive msg： ' . $msg->getBody());
-            if (rand(0, 2) == 2) {
-                return false;
-            }
             if (rand(0, 1) == 1) {
                 $msg->reject(false);
             } else {

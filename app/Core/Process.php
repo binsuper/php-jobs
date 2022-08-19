@@ -16,7 +16,7 @@ use Swoole\Timer;
  */
 class Process {
 
-    const VERSION        = '1.1.4';
+    const VERSION        = '1.20.1';
     const STATUS_RUNNING = 'running';   //运行中
     const STATUS_WAIT    = 'wait';      //等待所有子进程平滑结束
     const STATUS_STOP    = 'stop';      //运行中
@@ -931,6 +931,7 @@ class Process {
         $str .= PHP_EOL . '#system' . PHP_EOL;
         $str .= "user: \t\t\t" . $this->__user . PHP_EOL;
         $str .= "php_version: \t\t" . PHP_VERSION . PHP_EOL;
+        $str .= "swoole_version: \t" . SWOOLE_VERSION . PHP_EOL;
         $str .= "php-jobs_version: \t" . self::VERSION . PHP_EOL;
 
         $str .= PHP_EOL . '#rumtime' . PHP_EOL;

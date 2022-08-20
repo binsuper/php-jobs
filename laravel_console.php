@@ -14,7 +14,7 @@ $config  = include(GINO_JOBS_CONFIG_PATH);
 $console = new Gino\Jobs\Console($config);
 
 
-$console->process()->onWorkerStart(function () {
+$console->process()->onWorkerInit(function () {
     $app = require __DIR__ . '/bootstrap/app.php';
     $kernel = $app->make(Kernel::class);
     $kernel->bootstrap();

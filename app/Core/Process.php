@@ -229,8 +229,12 @@ class Process {
 
         $this->__begin_time = time();
 
-        // 关闭携程
-        \Swoole\Timer::set(['enable_coroutine' => false]);
+        // 关闭协程
+        if(version_compare(SWOOLE_VERSION, '4.6.0')){
+            swoole_async_set(['enable_coroutine' => false]);
+        }else {
+            Timer::set(['enable_coroutine' => false]);
+        }
     }
 
     /**

@@ -36,6 +36,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
      * @return IQueueDriver 失败返回false
      */
     public static function getConnection(array $config, string $queue_name, array $topic_config = []) {
+        $config = array_merge($config, $topic_config);
         return new self($config, $queue_name);
     }
 

@@ -133,27 +133,28 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
      *
      * @param array $config
      * @param string $queue_name
-     * @param string $more_config
+     * @param array $topic_config
      *
      * @return IQueueDriver 失败返回false
-     * @throws Exception
+     * @throws \Exception
      */
-    public static function getConnection(array $config, string $queue_name, array $more_config = []) {
-        $exchange_name = $more_config['exchange'] ?? '';
+    public static function getConnection(array $config, string $queue_name, array $topic_config = []) {
+        $exchange_name = $topic_config['exchange'] ?? '';
         if (empty($exchange_name)) {
             throw new \Exception('exchange must be set');
         }
 
-        isset($more_config['dlx']) && ($config['dlx'] = $more_config['dlx']);
-        isset($more_config['dlrk']) && ($config['dlrk'] = $more_config['dlrk']);
+        //isset($more_config['dlx']) && ($config['dlx'] = $more_config['dlx']);
+        //isset($more_config['dlrk']) && ($config['dlrk'] = $more_config['dlrk']);
+        $config = array_merge($config, $topic_config);
 
         return new self($config, $queue_name, $exchange_name);
     }
 
-    private function __construct(array $config, string $binding_key, string $exchange_name) {
-        $this->__binding_key   = $binding_key;
+    private function __construct(array $config, string $routing_key, string $exchange_name) {
+        $this->__binding_key   = $config['routing_key'] ?? $routing_key;
         $this->__exchange_name = $exchange_name;
-        $this->__queue_name    = $exchange_name . '.' . $binding_key;
+        $this->__queue_name    = $exchange_name . '.' . $routing_key;
         $this->__host          = $config['host'] ?? '127.0.0.1';
         $this->__port          = $config['port'] ?? 5672;
         $this->__user          = $config['user'] ?? '';

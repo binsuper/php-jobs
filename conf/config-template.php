@@ -71,7 +71,9 @@ return array(
             'max_workers' => 2, //最大的进程数
             'name'        => Config::get('daily_queue_key'),
             'action'      => \Jobs\DailyQueue::class,
+
             'exchange'    => 'dc_data_queue',
+            'routing_key' => '', // rabbitmq有效，替代 name 得 routing_key, name 将仅作为队列名称，
             // dead letter exchange
             'dlx'         => 'dlx.dc_data_queue',
             // dead letter routing key

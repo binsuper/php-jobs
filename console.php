@@ -19,6 +19,10 @@ $console->process()->onStop(function () {
     echo 'stop' . PHP_EOL;
 });
 
+$console->process()->onWorkerInit(function () {
+    echo 'worker init （' . getmypid() . ')' . PHP_EOL;
+});
+
 $console->process()->onWorkerStart(function () {
     echo 'worker start' . PHP_EOL;
 });

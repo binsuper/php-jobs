@@ -388,6 +388,14 @@ class Process {
             $this->_checkMpid($worker);
             $this->__setProcessName('worker' . $this->_processName);
             $this->_logger;
+
+            // onWorkerInit
+            try {
+                $this->_notify('worker_init', $worker);
+            } catch (\Throwable $ex) {
+                Utils::catchError($this->_logger, $ex);
+            }
+
             try {
                 $job = $topic->newJob();
                 if (!$job) {
@@ -1106,6 +1114,15 @@ class Process {
      */
     public function onStop($callback) {
         $this->__events['stop'][] = $callback;
+    }
+
+    /**
+     * 监听子进程初始化，作用环境在子进程内部
+     *
+     * @param $callback
+     */
+    public function onWorkerInit($callback) {
+        $this->__events['worker_init'][] = $callback;
     }
 
     /**

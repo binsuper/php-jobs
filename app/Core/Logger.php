@@ -15,11 +15,14 @@ class Logger implements ILogger {
     const LEVEL_ERROR      = 'error';
     const LEVEL_WARNING    = 'warning';
     const LEVEL_NOTICE     = 'notice';
+    const LEVEL_DEBUG      = 'debug';
+    const LEVEL_SCOPE      = [self::LEVEL_DEBUG => 1, self::LEVEL_NOTICE => 2, self::LEVEL_WARNING => 3, self::LEVEL_INFO => 4, self::LEVEL_ERROR => 5];
     const MAX_LOG_BUF_SIZE = 100; //缓冲区最大数量
 
-    private static $__instance = [];
-    private        $__log_dir  = ''; //日志目录
+    private static $__instance        = [];
+    private        $__log_dir         = ''; //日志目录
     private        $__log_file        = 'application.log'; //日志默认输出的文件
+    private        $__log_level       = 'debug'; // 日志输出级别
     private        $__log_category    = '__DEFAULT__'; //日志默认分类
     protected      $_log_buf          = []; //缓冲区
     protected      $_log_buf_size     = 0; //缓冲区日志数量
@@ -27,13 +30,16 @@ class Logger implements ILogger {
     public         $logfile_max_count = 5; //日志文件数量限制
     private        $__sw_locks        = []; //文件锁
 
-    public function __construct(string $log_dir, string $log_file = '') {
+    public function __construct(string $log_dir, string $log_file = '', string $log_level = '') {
         if (empty($log_dir)) {
             die('[Logger] argunents#1<log_dir> is null' . PHP_EOL);
         }
         $this->__log_dir = $log_dir;
-        if (empty($log_file)) {
+        if (!empty($log_file)) {
             $this->__log_file = $log_file;
+        }
+        if (!empty($log_level)) {
+            $this->__log_level = $log_level;
         }
         Utils::mkdir($this->__log_dir);
     }
@@ -45,7 +51,7 @@ class Logger implements ILogger {
      * @return $this
      */
     public static function getLogger(string $name = '__MAIN__') {
-        return self::$__instance[$name] ?? null;
+        return static::$__instance[$name] ?? null;
     }
 
     /**
@@ -56,11 +62,38 @@ class Logger implements ILogger {
      * @param string $name 实例名称
      * @return $this
      */
-    public static function regist(string $log_dir, string $log_file = '', string $name = '__MAIN__') {
-        if (!isset(self::$__instance[$name]) || self::$__instance[$name] == null) {
-            self::$__instance[$name] = new self($log_dir, $log_file);
+    public static function regist(string $log_dir, string $log_file = '', string $name = '__MAIN__', string $level = '') {
+        if (!isset(static::$__instance[$name]) || static::$__instance[$name] == null) {
+            static::$__instance[$name] = new static($log_dir, $log_file, $level);
         }
-        return self::$__instance[$name];
+        return static::$__instance[$name];
+    }
+
+    /**
+     * 获取默认日志分类
+     *
+     * @return string
+     */
+    public function getDefaultCategory(): string {
+        return $this->__log_category;
+    }
+
+    /**
+     * 获取日志缓冲区大小
+     *
+     * @return int
+     */
+    public function getMaxBufSize(): int {
+        return static::MAX_LOG_BUF_SIZE;
+    }
+
+    /**
+     * 满足日志等级要求
+     *
+     * @param $level
+     */
+    protected function isPower($level) {
+        return (self::LEVEL_SCOPE[$this->__log_level] ?? 0) <= (self::LEVEL_SCOPE[$level] ?? 100);
     }
 
     /**
@@ -86,14 +119,19 @@ class Logger implements ILogger {
      */
     public function log(string $msg, string $level = self::LEVEL_INFO, string $category = '', bool $flush = false) {
         try {
+            // 日志级别
+            if (!$this->isPower($level)) {
+                return $this;
+            }
+            // 默认分类
             if (!$category) {
-                $category = $this->__log_category;
+                $category = $this->getDefaultCategory();
             }
             $this->_log_buf[$category][] = $this->_formatLog($msg, $level, microtime(true));
             $this->_log_buf_size++;
 
             //刷新缓冲区
-            if ($flush || $this->_log_buf_size >= self::MAX_LOG_BUF_SIZE) {
+            if ($flush || $this->_log_buf_size >= $this->getMaxBufSize()) {
                 $this->flush();
             }
         } catch (\Exception $e) {
@@ -113,7 +151,7 @@ class Logger implements ILogger {
      * @return $this
      */
     public function info(string $msg, string $category = '', bool $flush = false) {
-        $this->log($msg, self::LEVEL_INFO, $category, $flush);
+        $this->log($msg, static::LEVEL_INFO, $category, $flush);
         return $this;
     }
 
@@ -126,7 +164,7 @@ class Logger implements ILogger {
      * @return $this
      */
     public function error(string $msg, string $category = '', bool $flush = false) {
-        $this->log($msg, self::LEVEL_ERROR, $category, $flush);
+        $this->log($msg, static::LEVEL_ERROR, $category, $flush);
         return $this;
     }
 
@@ -139,7 +177,7 @@ class Logger implements ILogger {
      * @return $this
      */
     public function warning(string $msg, string $category = '', bool $flush = false) {
-        $this->log($msg, self::LEVEL_WARNING, $category, $flush);
+        $this->log($msg, static::LEVEL_WARNING, $category, $flush);
         return $this;
     }
 
@@ -152,7 +190,7 @@ class Logger implements ILogger {
      * @return $this
      */
     public function notice(string $msg, string $category = '', bool $flush = false) {
-        $this->log($msg, self::LEVEL_NOTICE, $category, $flush);
+        $this->log($msg, static::LEVEL_NOTICE, $category, $flush);
         return $this;
     }
 
@@ -164,7 +202,7 @@ class Logger implements ILogger {
             return;
         }
         $this->_dumpFile();
-        $this->_log_buf      = [];
+        $this->_log_buf = [];
         $this->_log_buf_size = 0;
     }
 
@@ -175,22 +213,22 @@ class Logger implements ILogger {
         if (empty($this->_log_buf)) {
             return;
         }
-        $log_buf   = $this->_log_buf;
+        $log_buf = $this->_log_buf;
         $last_lock = null;
         foreach ($log_buf as $cat => $msg_list) {
             try {
                 if ($cat === $this->__log_category) {
-                    $log_dir  = $this->__log_dir;
+                    $log_dir = $this->__log_dir;
                     $log_file = strtr($this->__log_file, ['.log' => '']);
                 } else {
-                    $log_dir  = $this->__log_dir . DIRECTORY_SEPARATOR . $cat;
+                    $log_dir = $this->__log_dir . DIRECTORY_SEPARATOR . $cat;
                     $log_file = $cat;
                     Utils::mkdir($log_dir);
                 }
                 $log_file .= '-' . date('Ymd') . '.log';
 
                 $filename = $log_dir . DIRECTORY_SEPARATOR . $log_file;
-                $content  = implode('', $msg_list);
+                $content = implode('', $msg_list);
 
                 //文件加锁
                 if (!isset($this->__sw_locks[$filename])) {
@@ -210,9 +248,9 @@ class Logger implements ILogger {
                 //输出日志文件
                 error_log($content, 3, $filename);
             } catch (\Exception $e) {
-                $this->log('something bad happened when dumping the log files' . PHP_EOL . $e->getTraceAsString(), self::LEVEL_ERROR, 'error');
+                $this->log('something bad happened when dumping the log files' . PHP_EOL . $e->getTraceAsString(), static::LEVEL_ERROR, 'error');
             } catch (\Throwable $e) {
-                $this->log('something bad happened when dumping the log files' . PHP_EOL . $e->getTraceAsString(), self::LEVEL_ERROR, 'error');
+                $this->log('something bad happened when dumping the log files' . PHP_EOL . $e->getTraceAsString(), static::LEVEL_ERROR, 'error');
             } finally {
                 if ($last_lock) {
                     $last_lock->unlock();

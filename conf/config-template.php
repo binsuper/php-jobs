@@ -2,9 +2,10 @@
 
 return array(
     //日志模块
-    'log'      => [
-        'log_dir'  => GINO_JOBS_ROOT_PATH . '/var/logs', //日志存储的目录
-        'log_file' => 'application.log', //系统日志文件
+    'log' => [
+        'log_dir'   => GINO_JOBS_ROOT_PATH . '/var/logs', //日志存储的目录
+        'log_file'  => 'application.log', //系统日志文件
+        'log_level' => 'debug', //日志级别, [debug, notice, warning, info, error]
     ],
     //进程模块
     'process'  => [

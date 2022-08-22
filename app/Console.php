@@ -28,11 +28,13 @@ class Console {
         //初始化配置
         Config::setConfig($config);
         //初始化日志实例
-        Logger::regist(Config::getConfig('log', 'log_dir'), Config::getConfig('log', 'log_file', 'application.log'));
-        Logger::regist(Config::getConfig('log', 'log_dir'), Config::getConfig('process', 'process_log_file', 'process.log'), 'PROCESS');
+        Logger::regist(Config::getConfig('log', 'log_dir'), Config::getConfig('log', 'log_file', 'application.log'), '__MAIN__', Config::getConfig('log', 'log_level', ''));
+        Logger::regist(Config::getConfig('log', 'log_dir'), Config::getConfig('process', 'process_log_file', 'process.log'), 'PROCESS', Config::getConfig('log', 'log_level', ''));
 
         //初始化对象
         $this->_logger = Logger::getLogger();
+        $this->_logger->info('123');
+        $this->_logger->flush();
     }
 
     /**

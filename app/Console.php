@@ -159,6 +159,7 @@ HELP;
         if (isset($run_opts['no-delay'])) {
             $master_process->noDelay();
         }
+
         $master_process->start($run_opts);
     }
 

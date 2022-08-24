@@ -380,6 +380,7 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
         return $msg;
     }
 
+
     /**
      * 返回当前队列长度
      *
@@ -444,6 +445,27 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
                 }
                 $msg = new AMQPMessage($body);
                 $this->__channel->basic_publish($msg, $this->__exchange_name, $this->__binding_key);
+                return true;
+            });
+        } catch (\Exception $ex) {
+            Utils::catchError(Logger::getLogger(), $ex);
+            return false;
+        }
+    }
+
+
+    /**
+     * 清除数据
+     *
+     * @return bool
+     */
+    public function clear(): bool {
+        try {
+            return $this->__command(function (){
+                if (!$this->__channel) {
+                    throw new ConnectionException();
+                }
+                $this->__channel->queue_purge($this->__queue_name);
                 return true;
             });
         } catch (\Exception $ex) {

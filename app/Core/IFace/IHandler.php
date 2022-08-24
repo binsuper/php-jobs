@@ -2,6 +2,7 @@
 
 namespace Gino\Jobs\Core\IFace;
 
+use Gino\Jobs\Core\Process;
 use Gino\Jobs\Core\Topic;
 
 /**
@@ -30,5 +31,12 @@ interface IHandler {
      * @return mixed
      */
     public function run();
+
+    /**
+     * 执行结束
+     *
+     * @return mixed
+     */
+    public function finish();
 
 }

@@ -27,14 +27,15 @@ class Console {
 
         //初始化配置
         Config::setConfig($config);
+
+        $this->setProcessUser();
+
         //初始化日志实例
         Logger::regist(Config::getConfig('log', 'log_dir'), Config::getConfig('log', 'log_file', 'application.log'), '__MAIN__', Config::getConfig('log', 'log_level', ''));
         Logger::regist(Config::getConfig('log', 'log_dir'), Config::getConfig('process', 'process_log_file', 'process.log'), 'PROCESS', Config::getConfig('log', 'log_level', ''));
 
         //初始化对象
         $this->_logger = Logger::getLogger();
-        $this->_logger->info('123');
-        $this->_logger->flush();
     }
 
     /**
@@ -57,6 +58,36 @@ class Console {
             }
         }
         return $this->__run_args[0] ?? 'help';
+    }
+
+    public function setProcessUser() {
+        $config = Config::getConfig('process');
+        if (empty($config)) {
+            return;
+        }
+
+        $useropt = $config['user'] ?? '';
+        // 设置执行用户
+        if (!empty($useropt)) {
+            $info = explode(':', $useropt);
+            $user = $info[0];
+            if (empty($user)) {
+                throw new \RuntimeException('user who run the process is null');
+            }
+            $group = $info[1] ?? $user;
+            if (function_exists('posix_getgrnam') && function_exists('posix_setgid')) {
+                $ginfo = posix_getgrnam($group);
+                if ($ginfo) {
+                    posix_setgid($ginfo['gid']);
+                }
+            }
+            if (function_exists('posix_getpwnam') && function_exists('posix_setuid')) {
+                $uinfo = posix_getpwnam($user);
+                if ($uinfo) {
+                    posix_setuid($uinfo['uid']);
+                }
+            }
+        }
     }
 
     /**
@@ -143,11 +174,11 @@ HELP;
      * @return Process|null
      */
     public function process() {
-        static $process = null;
+        /*static $process = null;
         if ($process == NULL) {
             $process = new Process();
-        }
-        return $process;
+        }*/
+        return Process::getProcess();
     }
 
     /**
@@ -168,7 +199,7 @@ HELP;
      */
     public function stop($no_close = false) {
         try {
-            $master_process = new Process();
+            $master_process = Process::getProcess();
             $pid            = $master_process->getMasterInfo('pid');
             if ($no_close) {
                 if (!$pid) {
@@ -193,7 +224,7 @@ HELP;
      */
     public function restart() {
         //获取关闭前的配置
-        $master_process = new Process();
+        $master_process = Process::getProcess();
         $run_opt        = $master_process->getMasterInfo('options') ?: [];
         $pid            = $master_process->getMasterInfo('pid');
         //如果没有启动，则启动,或者重启
@@ -272,7 +303,7 @@ HELP;
      * 杀死僵尸进程
      */
     public function killZombie() {
-        $master_process = new Process();
+        $master_process = Process::getProcess();
         $pid            = $master_process->getMasterInfo('pid');
         if ($pid && \Swoole\Process::kill($pid, 0)) {
             echo 'program is running, can not kill zombie process' . PHP_EOL;
@@ -285,7 +316,7 @@ HELP;
      * 展示状态信息
      */
     public function showStatus() {
-        $master_process = new Process();
+        $master_process = Process::getProcess();
         $pid            = $master_process->getMasterInfo('pid');
         if (!$pid || !\Swoole\Process::kill($pid, 0)) {
             echo 'program is not running' . PHP_EOL;
@@ -301,7 +332,7 @@ HELP;
      * 刷新日志
      */
     public function flush() {
-        $master_process = new Process();
+        $master_process = Process::getProcess();
         $master_process->flush();
         echo 'flush log...' . PHP_EOL;
     }

@@ -206,6 +206,26 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
         }
     }
 
+
+    /**
+     * 清除数据
+     *
+     * @return bool
+     */
+    public function clear(): bool {
+        try {
+            $ret = $this->__command(function () {
+                return $this->__handler->del($this->__queue_name);
+            });
+            if ($ret) {
+                return true;
+            }
+            return false;
+        } catch (\Exception $ex) {
+            return false;
+        }
+    }
+
     /**
      * 将消息重新加入到队列中
      *

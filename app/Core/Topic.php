@@ -37,7 +37,7 @@ class Topic {
     /**
      * @var IHandler
      */
-    private $__handler = null;
+    private $__handlers = null;
 
     public function __construct(array $topic_info) {
         $this->__config = $topic_info;
@@ -49,12 +49,14 @@ class Topic {
         $this->__trans_per_operate = $topic_info['tpo'] ?? 1;
         $this->__interval = $topic_info['interval'] ?? 0;
 
-        if (!empty($topic_info['handler'])) {
-            if (is_array($topic_info['handler'])) {
-                $class = $topic_info['handler'][0];
-                $params = array_slice($topic_info['handler'], 1);
+        if (!empty($topic_info['handler']) && is_array($topic_info['handler'])) {
+            foreach ($topic_info['handler'] as $opt){
+                if (is_array($opt)) {
+                    $class = $opt[0];
+                    $params = array_slice($opt, 1);
+                }
+                $this->__handlers[] = new $class($this, $params);
             }
-            $this->__handler = new $class($this, $params);
         }
     }
 
@@ -246,10 +248,10 @@ class Topic {
     /**
      * 获取handler
      *
-     * @return IHandler|null
+     * @return IHandler[]
      */
-    public function getHandler() {
-        return $this->__handler;
+    public function getHandlers() {
+        return $this->__handlers;
     }
 
 }

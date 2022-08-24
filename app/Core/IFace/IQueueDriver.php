@@ -53,6 +53,13 @@ interface IQueueDriver {
     public function pop();
 
     /**
+     * 清除数据
+     *
+     * @return bool
+     */
+    public function clear(): bool;
+
+    /**
      * 关闭
      */
     public function close();

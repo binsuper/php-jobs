@@ -4,7 +4,9 @@ namespace Gino\Jobs\Kit\Handler;
 
 use Gino\Jobs\Core\IFace\IAutomatic;
 use Gino\Jobs\Core\IFace\IHandler;
+use Gino\Jobs\Core\Process;
 use Gino\Jobs\Core\Topic;
+use Gino\Jobs\Core\Worker;
 
 abstract class DefaultHandler implements IHandler {
 
@@ -19,8 +21,22 @@ abstract class DefaultHandler implements IHandler {
     protected $_params;
 
     public function __construct(Topic $topic, array $params) {
-        $this->_topic = $topic;
+        $this->_topic  = $topic;
         $this->_params = $params ?: [];
+        $this->hook();
+    }
+
+    /**
+     * 钩子
+     */
+    protected function hook() {
+        $process = Process::getProcess();
+        $process->onWorkerStart(function (Worker $worker) {
+            $this->run();
+        });
+        $process->onWorkerStop(function (Worker $worker) {
+            $this->finish();
+        });
     }
 
     /**
@@ -30,6 +46,10 @@ abstract class DefaultHandler implements IHandler {
         if ($this instanceof IAutomatic) {
             $this->auto();
         }
+    }
+
+    public function finish() {
+        // TODO: Implement finish() method.
     }
 
     /**

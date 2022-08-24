@@ -7,6 +7,7 @@ use Gino\Jobs\Core\IFace\IMonitor;
 use Gino\Jobs\Core\Exception\ExitException;
 use Gino\Jobs\Core\IFace\IQueueDelay;
 use Gino\Jobs\Core\Queue\Delay\Message as DelayMessage;
+use Swoole\Coroutine;
 use Swoole\Timer;
 
 /**
@@ -422,7 +423,7 @@ class Process {
                     $this->__status = $data['status'];
                     $this->__status_updatetime = microtime(true);
                     //flush log
-                    \Swoole\Coroutine::create(function () use ($data) {
+                    Coroutine::create(function () use ($data) {
                         $flush = $data['flush'] ?? false;
                         if (false !== $flush && time() - $flush <= 30) {
                             if (!isset($this->__flush_time) || $this->__flush_time < $flush) {
@@ -536,7 +537,7 @@ class Process {
                         $this->__status = $data['status'];
                         $this->__status_updatetime = microtime(true);
                         //flush log
-                        \Swoole\Coroutine::create(function () use ($data) {
+                        Coroutine::create(function () use ($data) {
                             $flush = $data['flush'] ?? false;
                             if (false !== $flush && time() - $flush <= 30) {
                                 if (!isset($this->__flush_time) || $this->__flush_time < $flush) {
@@ -624,7 +625,7 @@ class Process {
 
                             // 当数据量过大时，定期进行休眠让出时间片，避免当前进程卡死
                             if ($leave_count > 1000) {
-                                \Co::sleep(0.001);
+                                Coroutine::sleep(0.001);
                             }
 
                             return true;

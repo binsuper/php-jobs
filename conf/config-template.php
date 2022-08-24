@@ -58,6 +58,7 @@ return array(
             'max_workers' => 4, //最大的进程数
             'name'        => 'test',
             'action'      => \Gino\Jobs\Action\Test::class,
+//            'action'      => [\Gino\Jobs\Action\Test::class, 1, 2],
             'exchange'    => 'phpjob',
 //            'tpo'         => 100, // redis队列支持一次处理多条消息
             'health_size' => 10, //健康的队列长度, 超出后将开启动态进程

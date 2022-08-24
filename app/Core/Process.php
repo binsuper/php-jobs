@@ -230,9 +230,9 @@ class Process {
         $this->__begin_time = time();
 
         // 关闭协程
-        if(version_compare(SWOOLE_VERSION, '4.6.0')){
+        if (version_compare(SWOOLE_VERSION, '4.6.0')) {
             swoole_async_set(['enable_coroutine' => false]);
-        }else {
+        } else {
             Timer::set(['enable_coroutine' => false]);
         }
     }
@@ -332,6 +332,14 @@ class Process {
     public function start(array $run_opts = []) {
         $this->_init($run_opts);
 
+        // handler
+        $this->onWorkerInit(function ($worker) {
+            /**
+             * @var $worker Worker
+             */
+            $worker->getTopic()->getHandler()->run();
+        });
+
         // onStart
         $this->_notify('start', $this);
 
@@ -391,7 +399,6 @@ class Process {
             //运行内容
             $this->_checkMpid($worker);
             $this->__setProcessName('worker' . $this->_processName);
-            $this->_logger;
 
             // onWorkerInit
             try {
@@ -491,6 +498,13 @@ class Process {
             unset($job);
             // $this->_saveWorkerStatus([], true);
             $this->_logger->flush();
+
+            \Swoole\Timer::clearAll();
+            sleep(1);
+            try {
+                exit();
+            } catch (\Swoole\ExitException $ex) {
+            }
         });
         try {
             $pid = $worker->start();

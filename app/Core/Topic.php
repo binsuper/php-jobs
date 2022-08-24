@@ -2,6 +2,7 @@
 
 namespace Gino\Jobs\Core;
 
+use Gino\Jobs\Core\IFace\IHandler;
 use Gino\Jobs\Core\Queue\Queue;
 
 /**
@@ -33,15 +34,28 @@ class Topic {
      */
     private $__interval = 0;
 
+    /**
+     * @var IHandler
+     */
+    private $__handler = null;
+
     public function __construct(array $topic_info) {
-        $this->__config            = $topic_info;
-        $this->__min_workers       = $topic_info['min_workers'] ?? 1;
-        $this->__max_workers       = $topic_info['max_workers'] ?? 1;
-        $this->__topic_name        = $topic_info['name'];
-        $this->__alias_name        = $topic_info['alias'] ?? '';
-        $this->__action            = $topic_info['action'];
+        $this->__config = $topic_info;
+        $this->__min_workers = $topic_info['min_workers'] ?? 1;
+        $this->__max_workers = $topic_info['max_workers'] ?? 1;
+        $this->__topic_name = $topic_info['name'];
+        $this->__alias_name = $topic_info['alias'] ?? '';
+        $this->__action = $topic_info['action'];
         $this->__trans_per_operate = $topic_info['tpo'] ?? 1;
-        $this->__interval          = $topic_info['interval'] ?? 0;
+        $this->__interval = $topic_info['interval'] ?? 0;
+
+        if (!empty($topic_info['handler'])) {
+            if (is_array($topic_info['handler'])) {
+                $class = $topic_info['handler'][0];
+                $params = array_slice($topic_info['handler'], 1);
+            }
+            $this->__handler = new $class($this, $params);
+        }
     }
 
     /**
@@ -99,7 +113,7 @@ class Topic {
         try {
 
             $health_size = $this->getHealthSize();
-            $queue_size  = $this->getQueueSize();
+            $queue_size = $this->getQueueSize();
             if ($health_size == 0 || $health_size > $queue_size) {
                 return;
             }
@@ -157,8 +171,14 @@ class Topic {
      */
     public function newJob() {
         $queue = Queue::getQueue($this);
-        $job   = new $this->__action();
-        $obj   = new Jobs($queue, $job, $this->getTPO());
+        if (is_array($this->__action)) {
+            $class = $this->__action[0];
+            $params = array_slice($this->__action, 1);
+            $job = new $class(...$params);
+        } else {
+            $job = new $this->__action();
+        }
+        $obj = new Jobs($queue, $job, $this->getTPO());
         return $obj;
     }
 
@@ -221,6 +241,15 @@ class Topic {
         }
 
         return Config::getConfig('process', 'max_execute_jobs', 100);
+    }
+
+    /**
+     * 获取handler
+     *
+     * @return IHandler|null
+     */
+    public function getHandler() {
+        return $this->__handler;
     }
 
 }

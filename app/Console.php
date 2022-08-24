@@ -47,7 +47,7 @@ class Console {
             //解析参数
             global $argv;
 
-            $command_args = array_slice($argv, 1);
+            $command_args     = array_slice($argv, 1);
             $this->__run_opts = getopt('', ['no-delay']) ?: []; //启动配置项
             foreach ($command_args as $arg) {
                 if ($arg[0] === '-') {
@@ -168,7 +168,7 @@ HELP;
     public function stop($no_close = false) {
         try {
             $master_process = new Process();
-            $pid = $master_process->getMasterInfo('pid');
+            $pid            = $master_process->getMasterInfo('pid');
             if ($no_close) {
                 if (!$pid) {
                     return true;
@@ -193,8 +193,8 @@ HELP;
     public function restart() {
         //获取关闭前的配置
         $master_process = new Process();
-        $run_opt = $master_process->getMasterInfo('options') ?: [];
-        $pid = $master_process->getMasterInfo('pid');
+        $run_opt        = $master_process->getMasterInfo('options') ?: [];
+        $pid            = $master_process->getMasterInfo('pid');
         //如果没有启动，则启动,或者重启
         if (!$pid || !\Swoole\Process::kill($pid, 0)) {
             $this->start($run_opt);
@@ -237,9 +237,21 @@ HELP;
             if (empty($config)) {
                 throw new \Exception('config<queue> is empty');
             }
-            $class = $config['class'];
-            if (!class_implements($class)[Core\IFace\IQueueDriver::class]) {
-                throw new \Exception("queue driver($class) must implements class(" . Core\IFace\IQueueDriver::class . ')');
+            if (isset($config['class'])) {
+                $class = $config['class'];
+                if (!class_implements($class)[Core\IFace\IQueueDriver::class]) {
+                    throw new \Exception("queue driver($class) must implements class(" . Core\IFace\IQueueDriver::class . ')');
+                }
+            } else {
+                foreach ($config as $cfg) {
+                    if (!is_array($cfg)) {
+                        continue;
+                    }
+                    $class = $cfg['class'];
+                    if (!class_implements($class)[Core\IFace\IQueueDriver::class]) {
+                        throw new \Exception("queue driver($class) must implements class(" . Core\IFace\IQueueDriver::class . ')');
+                    }
+                }
             }
         } catch (\Exception $ex) {
             Core\Utils::catchError($this->_logger, $ex);
@@ -260,7 +272,7 @@ HELP;
      */
     public function killZombie() {
         $master_process = new Process();
-        $pid = $master_process->getMasterInfo('pid');
+        $pid            = $master_process->getMasterInfo('pid');
         if ($pid && \Swoole\Process::kill($pid, 0)) {
             echo 'program is running, can not kill zombie process' . PHP_EOL;
             return;
@@ -273,7 +285,7 @@ HELP;
      */
     public function showStatus() {
         $master_process = new Process();
-        $pid = $master_process->getMasterInfo('pid');
+        $pid            = $master_process->getMasterInfo('pid');
         if (!$pid || !\Swoole\Process::kill($pid, 0)) {
             echo 'program is not running' . PHP_EOL;
             return;

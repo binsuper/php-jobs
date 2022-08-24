@@ -21,25 +21,27 @@ return array(
     ],
     //队列模块
     'queue'    => [
-        //redis
-        'class'            => \Gino\Jobs\Core\Queue\RedisQueue::class,
-        'host'             => '127.0.0.1',
-        'port'             => 6379,
-        'pass'             => '',
-        'db'               => 0,
-        'delay_queue_name' => 'php-jobs-delay', //延迟队列的名称
-        /*
-          //rabiitmq
-          'class'            => \Gino\Jobs\Core\Queue\RabbitmqQueue::class,
-          'host'             => '127.0.0.1',
-          'port'             => 5672,
-          'user'             => 'admin',
-          'pass'             => '123456',
-          'vhost'            => '/',
-          'qos'              => 1
-          'ssl' => ['verify_peer_name' => false, 'verify_peer' => false], // 使用ssl连接MQ，并无视证书要求
-          'options' => ['locale' => 'zh_CN'] // 配置项
-         */
+        'default'  => [
+            //redis
+            'class'            => \Gino\Jobs\Core\Queue\RedisQueue::class,
+            'host'             => '10.19.9.114',
+            'port'             => 6379,
+            'pass'             => '123456',
+            'db'               => 0,
+            'delay_queue_name' => 'php-jobs-delay', //延迟队列的名称
+        ],
+        'rabbitmq' => [
+            //rabiitmq
+            'class'   => \Gino\Jobs\Core\Queue\RabbitmqQueue::class,
+            'host'    => '127.0.0.1',
+            'port'    => 5672,
+            'user'    => 'admin',
+            'pass'    => '123456',
+            'vhost'   => '/',
+            'qos'     => 1,
+            'ssl'     => ['verify_peer_name' => false, 'verify_peer' => false], // 使用ssl连接MQ，并无视证书要求
+            'options' => ['locale' => 'zh_CN'] // 配置项
+        ],
     ],
     //任务模块
     'topics'   => [
@@ -59,8 +61,9 @@ return array(
             'name'        => 'test',
             'action'      => \Gino\Jobs\Action\Test::class,
             'exchange'    => 'phpjob',
-//            'tpo'         => 100, // redis队列支持一次处理多条消息
+            //'tpo'         => 100, // redis队列支持一次处理多条消息
             'health_size' => 10, //健康的队列长度, 超出后将开启动态进程
+            // 'queue' => 'rabbitmq', // 指定使用队列，默认值为default
             // 'max_execute_jobs' => 5, // 子进程最多执行任务数量(0为不限制)，超出后将重启进程，防止内存泄漏
             // 'command'     => 'Me', // 脚本别名
             // 'alias'       => 'test job'

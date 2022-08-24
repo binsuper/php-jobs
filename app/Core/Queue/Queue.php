@@ -28,10 +28,12 @@ class Queue {
      * @throws \Exception
      */
     public static function getQueue(Topic $topic, bool $is_consume = true) {
-        $config                = Config::getConfig('queue');
-        $config['is_consumer'] = $is_consume;
         $topic_name            = $topic->getName();
         $topic_config          = $topic->getConfig();
+        $queue_select          = $topic_config['queue'] ?? 'default';
+        $config                = Config::getConfig('queue');
+        $config                = $config[$queue_select] ?? $config;
+        $config['is_consumer'] = $is_consume;
         $class                 = $config['class'];
         $pid                   = getmypid();
 

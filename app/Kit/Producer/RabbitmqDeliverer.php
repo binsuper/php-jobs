@@ -6,8 +6,14 @@ use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPSSLConnection;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
+use PhpAmqpLib\Wire\AMQPAbstractCollection;
 
-class RabbitmqDeliverer implements IDeliverer {
+/**
+ * Rabbitmq 队列消息投递
+ *
+ * @author GinoHuang <binsuper@126.com>
+ */
+class RabbitmqDeliverer extends Deliverer {
 
     private $__host;
     private $__port;
@@ -32,7 +38,7 @@ class RabbitmqDeliverer implements IDeliverer {
      *
      * @var AMQPChannel
      */
-    private $__channel;
+    private $__mq_channel;
 
     /**
      * dead letter exchange
@@ -64,17 +70,23 @@ class RabbitmqDeliverer implements IDeliverer {
      */
     private $__options = [];
 
+    /**
+     * @var array
+     */
     private $__exchanges = [];
 
+    /**
+     * @var string
+     */
     private $__exchange_name;
 
     public function __construct($config) {
-        $this->__host = $config['host'] ?? '127.0.0.1';
-        $this->__port = $config['port'] ?? 5672;
-        $this->__user = $config['user'] ?? '';
-        $this->__pass = $config['pass'] ?? '';
-        $this->__vhost = $config['vhost'] ?? '/';
-        $this->__ssl = $config['ssl'] ?? [];
+        $this->__host    = $config['host'] ?? '127.0.0.1';
+        $this->__port    = $config['port'] ?? 5672;
+        $this->__user    = $config['user'] ?? '';
+        $this->__pass    = $config['pass'] ?? '';
+        $this->__vhost   = $config['vhost'] ?? '/';
+        $this->__ssl     = $config['ssl'] ?? [];
         $this->__options = $config['options'] ?? false;
 
         $this->connect();
@@ -99,18 +111,19 @@ class RabbitmqDeliverer implements IDeliverer {
         } else {
             $this->__conn = new AMQPSSLConnection($this->__host, $this->__port, $this->__user, $this->__pass, $this->__vhost, $this->__ssl, $this->__options);
         }
-        $this->__channel = $this->__conn->channel();
+        $this->__mq_channel = $this->__conn->channel();
     }
 
     /**
      * 关闭连接
      *
-     * @return mixed|null
+     * @return bool
      */
-    public function close() {
+    public function close(): bool {
         if ($this->__conn instanceof AMQPStreamConnection) {
             $this->__conn->close();
         }
+        return true;
     }
 
     /**
@@ -118,16 +131,28 @@ class RabbitmqDeliverer implements IDeliverer {
      * @return $this
      */
     public function exchange($exchange) {
-        if (empty($this->__exchanges[$exchange])) {
+        return $this->channel($exchange);
+    }
+
+    /**
+     * 消息通道
+     *
+     * @param string|null $exchange
+     * @return $this
+     */
+    public function channel(string $exchange = '') {
+        parent::channel($exchange);
+        if (empty($this->__exchanges[$this->_channel])) {
             //声明exchange
             $channel = $this->__conn->channel();
-            $channel->exchange_declare($exchange, 'topic', false, true, false);
-            $this->__exchanges[$exchange] = $channel;
+            $channel->exchange_declare($this->_channel, 'topic', false, true, false);
+            $this->__exchanges[$this->_channel] = $channel;
         }
-        $this->__channel = $this->__exchanges[$exchange];
-        $this->__exchange_name = $exchange;
+        $this->__mq_channel    = $this->__exchanges[$this->_channel];
+        $this->__exchange_name = $this->_channel;
         return $this;
     }
+
 
     /**
      * 投递消息
@@ -136,9 +161,42 @@ class RabbitmqDeliverer implements IDeliverer {
      * @param string $msg
      * @return bool
      */
-    public function send(string $key, string $msg): bool {
-        $this->__channel->basic_publish(new AMQPMessage($msg), $this->__exchange_name, $key);
+    public function send(): bool {
+        $msg      = $this->data('message');
+        $exchange = $this->data('channel');
+        $queue    = $this->data('queue');
+        $delay    = $this->data('delay', 0);
+
+        $properties = [];
+        if ($delay > 0) {
+            $properties['expiration'] = $delay;
+            list($exchange, $queue) = $this->delayChange();
+        }
+
+        $this->__mq_channel->basic_publish(new AMQPMessage($msg, $properties), $exchange, $queue);
         return true;
+    }
+
+    public function delayChange() {
+        $dlx_exchange      = $this->data('channel');
+        $dlx_routingkey    = $this->data('queue');
+        $delay             = $this->data('delay', 0);
+        $delay_exchange    = $dlx_exchange . '#job-delay';
+        $delay_routing_key = $delay;
+        $delay_queue       = $delay_exchange . '#' . $delay_routing_key;
+
+        $queue_arguments = [
+            'x-dead-letter-exchange'    => [AMQPAbstractCollection::getSymbolForDataType(AMQPAbstractCollection::T_STRING_LONG), $dlx_exchange],
+            'x-dead-letter-routing-key' => [AMQPAbstractCollection::getSymbolForDataType(AMQPAbstractCollection::T_STRING_LONG), $dlx_routingkey]
+        ];
+
+        // 声明延迟交换器
+        $this->__mq_channel->exchange_declare($delay_exchange, 'topic', false, true, false);
+        // 声明延迟队列
+        $this->__mq_channel->queue_declare($delay_queue, false, true, false, false, false, $queue_arguments);
+        $this->__mq_channel->queue_bind($delay_queue, $delay_exchange, $delay_routing_key);
+
+        return [$delay_exchange, $delay_routing_key];
     }
 
 }

@@ -4,15 +4,55 @@ namespace Gino\Jobs\Kit\Producer;
 
 /**
  * 投递者接口
+ *
  * @author GinoHuang <binsuper@126.com>
  */
 interface IDeliverer {
 
     /**
-     * 投递
-     * @param string $key
+     * 消息通道
+     *
+     * @param string|null $channel
+     * @return $this
+     */
+    public function channel(string $channel = '');
+
+    /**
+     * 消息队列
+     *
+     * @param string $queue
+     * @return $this
+     */
+    public function queue(string $queue);
+
+    /**
+     * 延迟消息
+     *
+     * @param int $second 延迟时间，单位-秒
+     * @return $this
+     */
+    public function delay(int $second);
+
+    /**
+     * 设置消息体
+     *
      * @param string $msg
+     * @return $this
+     */
+    public function message(string $msg);
+
+    /**
+     * 投递
+     *
      * @return bool
      */
-    public function send(string $key, string $msg): bool;
+    public function send(): bool;
+
+    /**
+     * 关闭投递
+     *
+     * @return bool
+     */
+    public function close(): bool;
+
 }

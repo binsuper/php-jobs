@@ -2,7 +2,7 @@
 
 return array(
     //日志模块
-    'log' => [
+    'log'      => [
         'log_dir'   => GINO_JOBS_ROOT_PATH . '/var/logs', //日志存储的目录
         'log_file'  => 'application.log', //系统日志文件
         'log_level' => 'debug', //日志级别, [debug, notice, warning, info, error]
@@ -45,8 +45,8 @@ return array(
     ],
     //任务模块
     'topics'   => [
-        //任务: 延迟任务分派
-        //要做延迟任务的，需要加上下面的任务，帮助任务分配到指定的延迟队列
+        // 任务: 延迟任务分派
+        // 要做延迟任务的，需要加上下面的任务，帮助任务分配到指定的延迟队列
         [
             'min_workers' => 1, //最少的进程数
             'max_workers' => 2, //最大的进程数
@@ -54,7 +54,7 @@ return array(
             'action'      => \Gino\Jobs\Core\Action\RedisDelayDeliver::class,
             'exchange'    => 'phpjob'
         ],
-        //普通
+        // 通用
         [
             'min_workers' => 1, //最少的进程数
             'max_workers' => 4, //最大的进程数
@@ -69,8 +69,10 @@ return array(
             // 'command'     => 'Me', // 脚本别名
             // 'alias'       => 'test job'
             // 'interval' => 10, // 任务执行间隔，10毫秒
+            // 'queue'      => 'default', // 指定作为特定队列的消费者，默认值 default
+            // 'handler' => [[\Gino\Jobs\Kit\Handler\TimeTick::class, 2000],], // 配置处理类
         ],
-        /* rabbitmq 增加死信队列
+        /* rabbitmq
         [
             'min_workers' => 1, //最少的进程数
             'max_workers' => 2, //最大的进程数

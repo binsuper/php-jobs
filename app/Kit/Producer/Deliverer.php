@@ -60,13 +60,15 @@ abstract class Deliverer implements IDeliverer {
      * 延迟消息
      *
      * @param int $second 延迟时间，单位-秒
+     * @param string $delay_queue 延迟队列名称
      * @return $this
      */
-    public function delay(int $second) {
+    public function delay(int $second, string $delay_queue = '') {
         if (is_null($this->_channel)) {
             $this->channel();
         }
-        $this->_session[$this->_channel]['delay'] = $second;
+        $this->_session[$this->_channel]['delay']       = $second;
+        $this->_session[$this->_channel]['delay_queue'] = $delay_queue;
         return $this;
     }
 

@@ -62,12 +62,11 @@ class Queue {
      * @throws \Exception
      */
     public static function getDelayQueue() {
-        $delay_queue_name      = Config::getConfig('queue', 'delay_queue_name');
-        $config                = Config::getConfig('queue');
+        $config                = Config::getConfig('queue', '__delay__', []);
         $config['is_consumer'] = false;
         $class                 = $config['class'];
         $pid                   = getmypid();
-        if (empty($delay_queue_name)) {
+        if (empty($config['delay_queue_name'])) {
             return false;
         }
         $key = md5($pid . $class . serialize($config) . 'delay');
@@ -82,7 +81,7 @@ class Queue {
             $last_ex = null;
             for ($i = 0; $i != 3; $i++) {
                 try {
-                    static::$__instance[$key] = $class::getConnection($config, $delay_queue_name);
+                    static::$__instance[$key] = $class::getConnection($config, $config['delay_queue_name']);
                     return static::$__instance[$key];
                 } catch (\Exception $ex) {
                     $last_ex = $ex;

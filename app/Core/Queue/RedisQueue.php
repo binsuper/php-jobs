@@ -25,8 +25,8 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
     /**
      * @var \Redis
      */
-    private $__handler;
-    private $__queue_name;
+    protected $_handler;
+    protected $_queue_name;
 
     /**
      * 获取连接
@@ -41,12 +41,12 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
     }
 
     private function __construct(array $config, string $queue_name) {
-        $this->__queue_name = $queue_name;
-        $this->__host       = $config['host'] ?? '127.0.0.1';
-        $this->__port       = $config['port'] ?? 6379;
-        $this->__db         = $config['db'] ?? 0;
-        $this->__auth       = $config['pass'] ?? '';
-        $this->__handler    = new \Redis();
+        $this->_queue_name = $queue_name;
+        $this->__host      = $config['host'] ?? '127.0.0.1';
+        $this->__port      = $config['port'] ?? 6379;
+        $this->__db        = $config['db'] ?? 0;
+        $this->__auth      = $config['pass'] ?? '';
+        $this->_handler    = new \Redis();
         $this->__connect();
     }
 
@@ -68,12 +68,12 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
             if (empty($this->__host) || empty($this->__port)) {
                 throw new \Exception('redis host or port is empty');
             }
-            @$this->__handler->connect($this->__host, $this->__port, 3);
+            @$this->_handler->connect($this->__host, $this->__port, 3);
             if (!empty($this->__auth)) {
-                $this->__handler->auth($this->__auth);
+                $this->_handler->auth($this->__auth);
             }
             if (!empty($this->__db)) {
-                $this->__handler->select($this->__db);
+                $this->_handler->select($this->__db);
             }
         } catch (\RedisException $ex) {
             throw $ex;
@@ -84,7 +84,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
      * @return bool
      */
     public function isConntected(): bool {
-        return $this->__handler->isConnected();
+        return $this->_handler->isConnected();
     }
 
     /**
@@ -94,8 +94,8 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
      */
     public function size(): int {
         try {
-            $len = $this->__command(function () {
-                return $this->__handler->lLen($this->__queue_name);
+            $len = $this->_command(function () {
+                return $this->_handler->lLen($this->_queue_name);
             });
             if (!$len) {
                 return 0;
@@ -114,8 +114,8 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
      */
     public function getQueueSize(string $queue_name): int {
         try {
-            $len = $this->__command(function () use ($queue_name) {
-                return $this->__handler->lLen($queue_name);
+            $len = $this->_command(function () use ($queue_name) {
+                return $this->_handler->lLen($queue_name);
             });
             if (!$len) {
                 return 0;
@@ -132,7 +132,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
      * @param callable $callback
      * @return mixed
      */
-    private function __command($callback) {
+    protected function _command($callback) {
         try {
             return call_user_func($callback);
         } catch (\RedisException $ex) {
@@ -171,8 +171,8 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
      */
     public function pop() {
         try {
-            $ret = $this->__command(function () {
-                return $this->__handler->brPop($this->__queue_name, 1);
+            $ret = $this->_command(function () {
+                return $this->_handler->brPop($this->_queue_name, 1);
             });
             if (empty($ret)) {
                 return NULL;
@@ -194,8 +194,8 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
      */
     public function push(string $body): bool {
         try {
-            $ret = $this->__command(function () use ($body) {
-                return $this->__handler->lPush($this->__queue_name, $body);
+            $ret = $this->_command(function () use ($body) {
+                return $this->_handler->lPush($this->_queue_name, $body);
             });
             if ($ret) {
                 return true;
@@ -214,8 +214,8 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
      */
     public function clear(): bool {
         try {
-            $ret = $this->__command(function () {
-                return $this->__handler->del($this->__queue_name);
+            $ret = $this->_command(function () {
+                return $this->_handler->del($this->_queue_name);
             });
             if ($ret) {
                 return true;
@@ -240,14 +240,14 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
      * 关闭
      */
     public function close() {
-        if ($this->__handler) {
-            $this->__handler->close();
-            $this->__handler = null;
+        if ($this->_handler) {
+            $this->_handler->close();
+            $this->_handler = null;
         }
     }
 
     public function getQueueName(): string {
-        return $this->__queue_name;
+        return $this->_queue_name;
     }
 
     /**
@@ -258,11 +258,11 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
      */
     public function getDelayQueueSize(): int {
         try {
-            $count = $this->__command(function () {
+            $count = $this->_command(function () {
                 $slots = 60;
                 $count = 0;
                 while (--$slots >= 0) {
-                    $count += $this->__handler->lLen($this->__queue_name . '#' . $slots);
+                    $count += $this->_handler->lLen($this->_queue_name . '#' . $slots);
                 }
                 return $count;
             });
@@ -279,11 +279,11 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
      * @inheritDoc
      */
     public function scanDelayQueue($callback, $break_callback) {
-        $slot_key = $this->__queue_name . '#slot';
+        $slot_key = $this->_queue_name . '#slot';
         try {
             if (!isset($this->delay_slot)) {
-                $this->delay_slot = $this->__command(function () use ($slot_key) {
-                    return $this->__handler->get($slot_key) ?: 0;
+                $this->delay_slot = $this->_command(function () use ($slot_key) {
+                    return $this->_handler->get($slot_key) ?: 0;
                 });
                 $this->delay_slot = intval($this->delay_slot) % 60;
             }
@@ -293,8 +293,8 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
         }
         //更新slot
         try {
-            $this->__command(function () use ($slot_key) {
-                return $this->__handler->incr($slot_key);
+            $this->_command(function () use ($slot_key) {
+                return $this->_handler->incr($slot_key);
             });
         } catch (\Throwable $ex) {
             Utils::catchError(Logger::getLogger(), $ex);
@@ -306,9 +306,9 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
         //协程
         \Swoole\Coroutine::create(function () use ($slot, $callback, $break_callback) {
             try {
-                $delay_queue = $this->__queue_name . '#' . $slot;
-                $count       = $this->__command(function () use ($delay_queue) {
-                    return $this->__handler->lLen($delay_queue);
+                $delay_queue = $this->_queue_name . '#' . $slot;
+                $count       = $this->_command(function () use ($delay_queue) {
+                    return $this->_handler->lLen($delay_queue);
                 });
             } catch (\Throwable $ex) {
                 Utils::catchError(Logger::getLogger(), $ex);
@@ -317,11 +317,11 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
             while ($count && $count-- > 0) {
                 try {
 
-                    $bodys = $this->__handler->lRange($delay_queue, -2000, -1);
+                    $bodys = $this->_handler->lRange($delay_queue, -2000, -1);
                     if (empty($bodys)) {
                         break;
                     }
-                    $this->__handler->lTrim($delay_queue, 0, 0 - count($bodys) - 1);
+                    $this->_handler->lTrim($delay_queue, 0, 0 - count($bodys) - 1);
                     $count -= count($bodys) + 1;
 
                     $backlist = [];
@@ -342,7 +342,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
                     }
 
                     if (!empty($backlist)) {
-                        $this->__handler->lPush($delay_queue, ...$backlist);
+                        $this->_handler->lPush($delay_queue, ...$backlist);
                     }
 
                     // 返回false，则中断执行
@@ -366,10 +366,10 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
      * @return bool
      */
     public function pushDelay(string $target_queue_name, string $msg, int $delay): bool {
-        $slot_key = $this->__queue_name . '#slot';
+        $slot_key = $this->_queue_name . '#slot';
         try {
-            $slot = $this->__command(function () use ($slot_key) {
-                return $this->__handler->get($slot_key) ?: 0;
+            $slot = $this->_command(function () use ($slot_key) {
+                return $this->_handler->get($slot_key) ?: 0;
             });
         } catch (\Throwable $ex) {
             Utils::catchError(Logger::getLogger(), $ex);
@@ -378,7 +378,8 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
         $delay++; //往后加一秒，保证任务不会提前触发
         $target_slot  = ($delay + $slot) % 60;
         $target_delay = floor($delay / 60);
-        $data         = json_encode([
+
+        $data = json_encode([
             'target'  => $target_queue_name,
             'payload' => $msg,
             'delay'   => $target_delay
@@ -386,7 +387,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
         if (!$data) { //数据错误
             return false;
         }
-        $delay_queue = $this->__queue_name . '#' . $target_slot;
+        $delay_queue = $this->_queue_name . '#' . $target_slot;
         return $this->pushTarget($delay_queue, $data) ? true : false;
     }
 
@@ -398,8 +399,8 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
      */
     public function pushTarget(string $target_queue_name, string $msg): bool {
         try {
-            $ret = $this->__command(function () use ($target_queue_name, $msg) {
-                return $this->__handler->lPush($target_queue_name, $msg);
+            $ret = $this->_command(function () use ($target_queue_name, $msg) {
+                return $this->_handler->lPush($target_queue_name, $msg);
             });
             if ($ret) {
                 return true;

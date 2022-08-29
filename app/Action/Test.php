@@ -53,7 +53,6 @@ class Test implements IConsumer, ICommand {
      * @inheritDoc
      */
     public function execute(array $params) {
-        var_dump($params);
         $producer = new Producer();
         $producer->setDeliverer(new RedisDeliverer(Config::getConfig('queue', 'default')));
 
@@ -61,7 +60,7 @@ class Test implements IConsumer, ICommand {
                           ->channel('phpjob')
                           ->queue('test4')
                           ->message(json_encode($params))
-//                          ->delay(2000)
+                          ->delay(2000, 'php-jobs-delay')
                           ->send());
 
     }

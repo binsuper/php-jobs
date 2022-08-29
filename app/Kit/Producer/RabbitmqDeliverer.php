@@ -157,8 +157,6 @@ class RabbitmqDeliverer extends Deliverer {
     /**
      * 投递消息
      *
-     * @param string $key
-     * @param string $msg
      * @return bool
      */
     public function send(): bool {
@@ -170,14 +168,17 @@ class RabbitmqDeliverer extends Deliverer {
         $properties = [];
         if ($delay > 0) {
             $properties['expiration'] = $delay;
-            list($exchange, $queue) = $this->delayChange();
+            list($exchange, $queue) = $this->_delayChange();
         }
 
         $this->__mq_channel->basic_publish(new AMQPMessage($msg, $properties), $exchange, $queue);
         return true;
     }
 
-    public function delayChange() {
+    /**
+     * @return array
+     */
+    protected function _delayChange() {
         $dlx_exchange      = $this->data('channel');
         $dlx_routingkey    = $this->data('queue');
         $delay             = $this->data('delay', 0);

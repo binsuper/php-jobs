@@ -29,9 +29,10 @@ interface IDeliverer {
      * 延迟消息
      *
      * @param int $second 延迟时间，单位-秒
+     * @param string $delay_queue 延迟队列名称
      * @return $this
      */
-    public function delay(int $second);
+    public function delay(int $second, string $delay_queue = '');
 
     /**
      * 设置消息体

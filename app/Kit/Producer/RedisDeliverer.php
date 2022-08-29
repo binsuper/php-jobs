@@ -2,6 +2,8 @@
 
 namespace Gino\Jobs\Kit\Producer;
 
+use http\Exception\InvalidArgumentException;
+
 /**
  * 消息队列 队列消息投递
  *
@@ -65,8 +67,6 @@ class RedisDeliverer extends Deliverer {
     /**
      * 投递消息
      *
-     * @param string $key
-     * @param string $msg
      * @return bool
      */
     public function send(): bool {
@@ -74,11 +74,28 @@ class RedisDeliverer extends Deliverer {
         $queue = $this->data('queue');
         $delay = $this->data('delay', 0);
 
-        $properties = [];
         if ($delay > 0) {
-            $properties['expiration'] = $delay;
+            $data  = [
+                'payload' => $msg,
+                'target'  => $queue,
+                'delay'   => $delay
+            ];
+            $msg   = json_encode($data, JSON_UNESCAPED_UNICODE);
+            $queue = $this->getDelayQueueName();
+            if (empty($queue)) {
+                throw new \InvalidArgumentException('"delay_queue" is missing');
+            }
         }
         return (bool)$this->_conn->lPush($queue, $msg);
+    }
+
+    /**
+     * 获取延迟队列名称
+     *
+     * @return string
+     */
+    public function getDelayQueueName(): string {
+        return $this->data('delay_queue', '');
     }
 
 }

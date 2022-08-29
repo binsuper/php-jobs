@@ -18,7 +18,7 @@ use Swoole\Timer;
  */
 class Process {
 
-    const VERSION        = '1.20.1';
+    const VERSION        = '1.22';
     const STATUS_RUNNING = 'running';   //运行中
     const STATUS_WAIT    = 'wait';      //等待所有子进程平滑结束
     const STATUS_STOP    = 'stop';      //运行中
@@ -99,7 +99,7 @@ class Process {
      *
      * @var string
      */
-    private $__delay_queue_name = '';
+    private $__delay_queue = '';
 
     /**
      * 延迟队列的执行索引
@@ -141,11 +141,11 @@ class Process {
         $this->__dynamic_idle_time = $config['dynamic_idle_time'] ?? 0;
         $this->__queue_health_size = $config['queue_health_size'] ?? 0;
         $this->__monitor_interval  = $config['monitor_interval'] ?? 60000;
-        $this->__delay_queue_name  = Config::getConfig('queue', 'delay_queue_name', '');
+        $this->__delay_queue       = Config::getConfig('queue', '__delay__', []) ?? false;
         Utils::mkdir($this->__pid_dir);
         Utils::mkdir($this->__worker_info_dir);
 
-        if ($this->__delay_queue_name) {
+        if (!empty($this->__delay_queue['delay_queue_name'])) {
             $this->__opt_delay_enable = true;
         }
 
@@ -363,7 +363,7 @@ class Process {
         foreach ($topics_config as $topic_info) {
             $topic = new Topic($topic_info);
             if (!$this->__opt_delay_enable) {
-                if ($topic->getName() === $this->__delay_queue_name) {
+                if ($topic->getName() === $this->__delay_queue['delay_queue_name']) {
                     continue;
                 }
             }
@@ -456,7 +456,7 @@ class Process {
                             $info = [
                                 'pid'       => getmypid(),
                                 'now'       => date('Y-m-d H:i:s'),
-                                'duration'  => intval($worker->getDuration()) . 's', //已运行时长
+                                'duration'  => strftime('%H:%M:%S', intval($worker->getDuration())), //已运行时长
                                 'topic'     => $topic->getName(),
                                 'type'      => $worker->getType(), //子进程类型
                                 'status'    => $job->idleTime() > 30 ? 'idle' : 'running',
@@ -590,7 +590,7 @@ class Process {
                                 'pid'       => getmypid(),
                                 'now'       => date('Y-m-d H:i:s'),
                                 'name'      => '[delay]',
-                                'duration'  => intval($worker->getDuration()) . 's', //已运行时长
+                                'duration'  => '-', //已运行时长
                                 'type'      => $worker->getType(), //子进程类型
                                 'status'    => 'running',
                                 'done'      => 0, //已完成的任务数

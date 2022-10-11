@@ -42,6 +42,17 @@ return array(
             'ssl'     => ['verify_peer_name' => false, 'verify_peer' => false], // 使用ssl连接MQ，并无视证书要求
             'options' => ['locale' => 'zh_CN'] // 配置项
         ],
+        /**
+        // 延迟队列，使用 redis 实现延迟消息投递
+        '__delay__' => [ // redis 配置
+            'class'            => \Gino\Jobs\Core\Queue\Delay\Queue::class,
+            'host'             => '123456',
+            'port'             => 6379,
+            'pass'             => '123456',
+            'db'               => 0,
+            'delay_queue_name' => 'php-jobs-delay' //延迟队列的名称
+        ],
+         */
     ],
     //任务模块
     'topics'   => [

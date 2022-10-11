@@ -99,7 +99,7 @@ class Process {
      *
      * @var string
      */
-    private $__delay_queue = '';
+    private $__delay_queue = [];
 
     /**
      * 延迟队列的执行索引
@@ -362,7 +362,7 @@ class Process {
         $topics_config = Config::getConfig('topics');
         foreach ($topics_config as $topic_info) {
             $topic = new Topic($topic_info);
-            if (!$this->__opt_delay_enable) {
+            if ($this->__opt_delay_enable) {
                 if ($topic->getName() === $this->__delay_queue['delay_queue_name']) {
                     continue;
                 }

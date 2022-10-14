@@ -9,8 +9,6 @@ use Gino\Jobs\Core\IFace\IAutomatic;
 use Gino\Jobs\Core\Logger;
 use Gino\Jobs\Core\Queue\Queue;
 use Gino\Jobs\Core\Utils;
-use Swoole\Coroutine;
-use Swoole\Event;
 use Swoole\Timer;
 
 class TimeTick extends DefaultHandler implements IAutomatic {
@@ -21,10 +19,11 @@ class TimeTick extends DefaultHandler implements IAutomatic {
         $queue = Queue::getQueue($this->getTopic(), false);
         $queue->clear();
         $time = $this->getParams()[0] ?? 1000; // 默认1秒
+        $msg  = json_encode($this->getParams()[1] ?? []);
 
-        $this->timer_id = Timer::tick($time, function () use ($queue) {
+        $this->timer_id = Timer::tick($time, function () use ($queue, $msg) {
             try {
-                $queue->push('');
+                $queue->push($msg);
             } catch (\Throwable $ex) {
                 Utils::catchError(Logger::getLogger(), $ex);
             }

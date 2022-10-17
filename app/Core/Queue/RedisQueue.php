@@ -192,10 +192,11 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
      * @param string $body
      * @return bool
      */
-    public function push(string $body): bool {
+    public function push(string $body, ?string $key = null): bool {
         try {
-            $ret = $this->_command(function () use ($body) {
-                return $this->_handler->lPush($this->_queue_name, $body);
+            $key = is_null($key) ? $this->_queue_name : $key;
+            $ret = $this->_command(function () use ($body, $key) {
+                return $this->_handler->lPush($key, $body);
             });
             if ($ret) {
                 return true;

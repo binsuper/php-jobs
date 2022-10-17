@@ -23,7 +23,7 @@ class TimeTick extends DefaultHandler implements IAutomatic {
 
         $this->timer_id = Timer::tick($time, function () use ($queue, $msg) {
             try {
-                $queue->push($msg);
+                $queue->push($msg, $this->getTopic()->getName());
             } catch (\Throwable $ex) {
                 Utils::catchError(Logger::getLogger(), $ex);
             }

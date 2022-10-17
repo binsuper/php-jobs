@@ -32,10 +32,14 @@ abstract class DefaultHandler implements IHandler {
     protected function hook() {
         $process = Process::getProcess();
         $process->onWorkerStart(function (Worker $worker) {
-            $this->run();
+            if ($worker->getTopic() == $this->_topic) {
+                $this->run();
+            }
         });
         $process->onWorkerStop(function (Worker $worker) {
-            $this->finish();
+            if ($worker->getTopic() == $this->_topic) {
+                $this->finish();
+            }
         });
     }
 

@@ -437,7 +437,7 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
      *
      * @return bool
      */
-    public function push(string $body): bool {
+    public function push(string $body, ?string $key = null): bool {
         try {
             return $this->__command(function () use ($body) {
                 if (!$this->__channel) {

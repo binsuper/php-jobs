@@ -13,5 +13,5 @@ interface IQueueProducer {
      * @param string $body
      * @return bool
      */
-    public function push(string $body): bool;
+    public function push(string $body, ?string $key = null): bool;
 }

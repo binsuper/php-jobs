@@ -96,6 +96,12 @@ return array(
             'dlx'         => 'dlx.dc_data_queue',
             // dead letter routing key
             'dlrk'        => 'dlx.' . Config::get('daily_queue_key'),
+            'options'     => [], // rabbitmq 队列参数
+            'rabbitmq_delay' => [
+                'exchange'    => 'phpjob',
+                'routing_key' => 'test11.delay',
+                'deley'       => 10000,
+            ]
         ],
         */
     ],

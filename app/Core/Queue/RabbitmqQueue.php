@@ -129,6 +129,20 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
     private $__options = [];
 
     /**
+     * 队列信息
+     *
+     * @var array
+     */
+    private $__queue_options = [];
+
+    /**
+     * 延迟队列信息
+     *
+     * @var array
+     */
+    private $__delay_options = [];
+
+    /**
      * 获取连接
      *
      * @param array $config
@@ -146,13 +160,13 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
 
         //isset($more_config['dlx']) && ($config['dlx'] = $more_config['dlx']);
         //isset($more_config['dlrk']) && ($config['dlrk'] = $more_config['dlrk']);
-        $config = array_merge($config, $topic_config);
-
+//        $config = array_merge($config, $topic_config);
+        $config['topic'] = $topic_config;
         return new self($config, $queue_name, $exchange_name);
     }
 
     private function __construct(array $config, string $routing_key, string $exchange_name) {
-        $this->__binding_key   = $config['routing_key'] ?? $routing_key;
+        $this->__binding_key   = $config['topic']['routing_key'] ?? $routing_key;
         $this->__exchange_name = $exchange_name;
         $this->__queue_name    = $exchange_name . '.' . $routing_key;
         $this->__host          = $config['host'] ?? '127.0.0.1';
@@ -162,10 +176,12 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
         $this->__vhost         = $config['vhost'] ?? '/';
         $this->__qos           = $config['qos'] ?? 0;
         $this->__is_consumer   = $config['is_consumer'] ?? false;
-        $this->__dlx           = $config['dlx'] ?? '';
-        $this->__dlrk          = $config['dlrk'] ?? '';
+        $this->__dlx           = $config['topic']['dlx'] ?? '';
+        $this->__dlrk          = $config['topic']['dlrk'] ?? '';
         $this->__ssl           = $config['ssl'] ?? [];
         $this->__options       = $config['options'] ?? false;
+        $this->__queue_options = $config['topic']['options'] ?? [];
+        $this->__delay_options = $config['topic']['rabbitmq_delay'] ?? [];
 
         if ((!empty($this->__dlx) ^ !empty($this->__dlrk)) != 0) {
             if (empty($this->__dlx) || empty($this->__dlrk)) {
@@ -226,14 +242,17 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
                             $this->__options['keepalive'] ?? false,
                             $this->__options['heartbeat'] ?? 0
                         );
-                    }else {
+                    } else {
                         $this->__conn = new AMQPSSLConnection($this->__host, $this->__port, $this->__user, $this->__pass, $this->__vhost, $this->__ssl, $this->__options);
                     }
 
                     try {
+                        $this->declareDeleyQueue();
+
+                        // 主体队列
                         $this->__channel = $this->__conn->channel();
 
-                        $queue_arguments = [];
+                        $queue_arguments = $this->__queue_options;
 
                         // 声明死信交换器
                         if (!empty($this->__dlx)) {
@@ -461,7 +480,7 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
      */
     public function clear(): bool {
         try {
-            return $this->__command(function (){
+            return $this->__command(function () {
                 if (!$this->__channel) {
                     throw new ConnectionException();
                 }
@@ -483,6 +502,34 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
      */
     public function tpo(): int {
         return 1;
+    }
+
+    public function declareDeleyQueue() {
+        if (empty($this->__delay_options)) {
+            return;
+        }
+
+        $exchange    = $this->__delay_options['exchange'];
+        $routing_key = $this->__delay_options['routing_key'];
+        $ttl         = $this->__delay_options['deley'];
+        $queue_name  = $exchange . '.' . $routing_key;
+
+        $channel = $this->__conn->channel();
+
+        // 声明交换器
+        $channel->exchange_declare($exchange, 'topic', false, true, false);
+
+        // 申明队列
+        $channel->queue_declare($queue_name, false, true, false, false, false, [
+            'x-dead-letter-exchange'    => [AMQPAbstractCollection::getSymbolForDataType(AMQPAbstractCollection::T_STRING_LONG), $this->__exchange_name],
+            'x-dead-letter-routing-key' => [AMQPAbstractCollection::getSymbolForDataType(AMQPAbstractCollection::T_STRING_LONG), $this->__binding_key],
+            'x-message-ttl'             => [AMQPAbstractCollection::getSymbolForDataType(AMQPAbstractCollection::T_INT_LONG), $ttl]
+        ]);
+
+        // 队列绑定交换器
+        $channel->queue_bind($queue_name, $exchange, $routing_key);
+
+        $channel->close();
     }
 
 }

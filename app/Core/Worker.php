@@ -14,31 +14,35 @@ class Worker {
 
     /**
      * 子进程对象
-     * @var \Swoole\Process 
+     *
+     * @var \Swoole\Process
      */
 
     private $__process = null;
 
     /**
      * 子进程ID
-     * @var int 
+     *
+     * @var int
      */
     private $__pid = -1;
 
     /**
-     * @var Topic 
+     * @var Topic
      */
     private $__topic;
 
     /**
      * 开始运行的时间戳，毫秒
+     *
      * @var float
      */
     private $__begin_time = 0;
 
     /**
      * 子进程类型
-     * @var string 
+     *
+     * @var string
      */
     private $__child_type;
 
@@ -52,7 +56,7 @@ class Worker {
 
     /**
      * 设置进程启动函数
-     * 
+     *
      * @param callable $action 进程启动后执行的函数
      */
     public function action($action) {
@@ -61,7 +65,7 @@ class Worker {
 
     /**
      * 启动进程
-     * 
+     *
      * @return int PID
      */
     public function start() {
@@ -78,7 +82,11 @@ class Worker {
      */
     public function exitWorker() {
         $this->free();
-        @$this->__process->exit();
+        try {
+            @$this->__process->exit();
+        } catch (\Throwable $ex) {
+            // nothing
+        }
         $this->__process = null;
     }
 
@@ -94,7 +102,7 @@ class Worker {
 
     /**
      * 获取PID
-     * 
+     *
      * @return int
      */
     public function getPID() {
@@ -117,6 +125,7 @@ class Worker {
 
     /**
      * 获取子进程开始运行的时间
+     *
      * @return float 毫秒
      */
     public function getBeginTime() {
@@ -125,6 +134,7 @@ class Worker {
 
     /**
      * 获取子进程运行的时长
+     *
      * @return float 毫秒
      */
     public function getDuration() {
@@ -136,6 +146,7 @@ class Worker {
 
     /**
      * 获取进程类型
+     *
      * @return string
      */
     public function getType() {

@@ -456,7 +456,7 @@ class Process {
                             $info = [
                                 'pid'       => getmypid(),
                                 'now'       => date('Y-m-d H:i:s'),
-                                'duration'  => strftime('%H:%M:%S', intval($worker->getDuration())), //已运行时长
+                                'duration'  => intval($worker->getDuration())  . 's', //已运行时长
                                 'topic'     => $topic->getName(),
                                 'type'      => $worker->getType(), //子进程类型
                                 'status'    => $job->idleTime() > 30 ? 'idle' : 'running',

@@ -15,7 +15,8 @@
         "swoole/ide-helper": "^4.4",
         "ext-posix": "*",
         "ext-json": "*",
-        "ext-swoole": "^4.4"
+        "ext-swoole": "^4.4",
+        "binsuper/phplib": "^0.4.0"
     },
     "autoload": {
         "psr-4": {

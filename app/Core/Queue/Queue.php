@@ -31,7 +31,7 @@ class Queue {
         $topic_name            = $topic->getName();
         $topic_config          = $topic->getConfig();
         $queue_select          = $topic_config['queue'] ?? 'default';
-        $config                = Config::getConfig('queue');
+        $config                = Config::get('queue');
         $config                = $config[$queue_select] ?? $config;
         $config['is_consumer'] = $is_consume;
         $class                 = $config['class'];
@@ -62,7 +62,7 @@ class Queue {
      * @throws \Exception
      */
     public static function getDelayQueue() {
-        $config                = Config::getConfig('queue', '__delay__', []);
+        $config                = Config::get('queue.__delay__', []);
         $config['is_consumer'] = false;
         $class                 = $config['class'];
         $pid                   = getmypid();

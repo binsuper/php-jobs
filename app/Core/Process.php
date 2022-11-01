@@ -123,7 +123,7 @@ class Process {
     private $__monitors = [];
 
     public function __construct() {
-        $config = Config::getConfig('process');
+        $config = Config::get('process');
         if (empty($config) || empty($config['data_dir'])) {
             die('config process.data_dir must be set' . PHP_EOL);
         }
@@ -141,7 +141,7 @@ class Process {
         $this->__dynamic_idle_time = $config['dynamic_idle_time'] ?? 0;
         $this->__queue_health_size = $config['queue_health_size'] ?? 0;
         $this->__monitor_interval  = $config['monitor_interval'] ?? 60000;
-        $this->__delay_queue       = Config::getConfig('queue', '__delay__', []) ?? false;
+        $this->__delay_queue       = Config::get('queue.__delay__', []) ?? false;
         Utils::mkdir($this->__pid_dir);
         Utils::mkdir($this->__worker_info_dir);
 
@@ -150,7 +150,7 @@ class Process {
         }
 
         // 监视器
-        $monitors = Config::getConfig('monitor', '', []);
+        $monitors = Config::get('monitor', []);
         foreach ($monitors as $monitor) {
             $this->__monitors[] = new $monitor();
         }
@@ -359,7 +359,7 @@ class Process {
      * 注册topic
      */
     protected function _registTopics() {
-        $topics_config = Config::getConfig('topics');
+        $topics_config = Config::get('topics');
         foreach ($topics_config as $topic_info) {
             $topic = new Topic($topic_info);
             if ($this->__opt_delay_enable) {

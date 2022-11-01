@@ -227,7 +227,7 @@ class Topic {
             return $this->__config['health_size'];
         }
 
-        return Config::getConfig('process', 'queue_health_size', 100);
+        return Config::get('process.queue_health_size', 100);
 
     }
 
@@ -242,7 +242,7 @@ class Topic {
             return $this->__config['max_execute_jobs'];
         }
 
-        return Config::getConfig('process', 'max_execute_jobs', 100);
+        return Config::get('process.max_execute_jobs', 100);
     }
 
     /**

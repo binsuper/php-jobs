@@ -32,3 +32,5 @@ $console->process()->onWorkerStop(function () {
 });
 
 $console->run();
+
+\Swoole\Event::wait();

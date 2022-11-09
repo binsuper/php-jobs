@@ -79,13 +79,12 @@ class Worker {
 
     /**
      * 退出进程
+     * @param bool $is_self
      */
-    public function exitWorker() {
+    public function exitWorker(bool $is_self = false) {
         $this->free();
-        try {
-            @$this->__process->exit();
-        } catch (\Throwable $ex) {
-            // nothing
+        if($is_self) {
+            $this->__process->exit();
         }
         $this->__process = null;
     }

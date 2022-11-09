@@ -15,7 +15,7 @@
         "swoole/ide-helper": "^4.4",
         "ext-posix": "*",
         "ext-json": "*",
-        "ext-swoole": "^4.4"
+        "ext-swoole": "^4.6"
     },
     "autoload": {
         "psr-4": {

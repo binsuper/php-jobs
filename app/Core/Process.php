@@ -2,8 +2,6 @@
 
 namespace Gino\Jobs\Core;
 
-use Cassandra\Time;
-use Gino\Jobs\Core\IFace\IHandler;
 use Gino\Jobs\Core\IFace\IMonitor;
 use Gino\Jobs\Core\Exception\ExitException;
 use Gino\Jobs\Core\IFace\IQueueDelay;
@@ -12,13 +10,13 @@ use Swoole\Coroutine;
 use Swoole\Timer;
 
 /**
- * 进程管理
+ * process management
  *
  * @author GinoHuang <binsuper@126.com>
  */
 class Process {
 
-    const VERSION        = '1.23';
+    const VERSION        = '1.23.1';
     const STATUS_RUNNING = 'running';   //运行中
     const STATUS_WAIT    = 'wait';      //等待所有子进程平滑结束
     const STATUS_STOP    = 'stop';      //运行中
@@ -264,6 +262,7 @@ class Process {
         $this->_logger->flush();
 
         \Swoole\Timer::clearAll();
+        \Swoole\Event::wait();
         sleep(1);
         try {
             exit();
@@ -506,11 +505,11 @@ class Process {
             $this->_logger->flush();
 
             \Swoole\Timer::clearAll();
+            \Swoole\Event::wait();
             sleep(1);
             try {
                 exit();
-            } catch (\Swoole\ExitException $ex) {
-            }
+            } catch (\Swoole\ExitException $ex) {}
         });
         try {
             $pid = $worker->start();
@@ -657,7 +656,6 @@ class Process {
                 });
 
                 \Swoole\Event::wait();
-
             });
 
             try {
@@ -950,7 +948,7 @@ class Process {
     protected function _checkMpid(Worker $worker) {
         if (!\Swoole\Process::kill($this->__pid, 0)) {
             $this->_logger->log("Master process exited, I [{$worker->getPID()}] also quit\n");
-            $worker->exitWorker();
+            $worker->exitWorker(true);
         }
     }
 

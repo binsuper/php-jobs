@@ -455,7 +455,7 @@ class Process {
                             $info = [
                                 'pid'       => getmypid(),
                                 'now'       => date('Y-m-d H:i:s'),
-                                'duration'  => intval($worker->getDuration())  . 's', //已运行时长
+                                'duration'  => intval($worker->getDuration()) . 's', //已运行时长
                                 'topic'     => $topic->getName(),
                                 'type'      => $worker->getType(), //子进程类型
                                 'status'    => $job->idleTime() > 30 ? 'idle' : 'running',
@@ -509,7 +509,8 @@ class Process {
             sleep(1);
             try {
                 exit();
-            } catch (\Swoole\ExitException $ex) {}
+            } catch (\Swoole\ExitException $ex) {
+            }
         });
         try {
             $pid = $worker->start();
@@ -699,6 +700,7 @@ class Process {
         //进程状态信息
         \Swoole\Process::signal(SIGUSR2, function ($signo) {
             $this->_saveMasterStatus();
+            $this->writePipe($this->showStatus());
         });
 
         //动态进程管理
@@ -1060,6 +1062,37 @@ class Process {
             return $info;
         } catch (\Throwable $ex) {
             Utils::catchError($this->_logger, $ex);
+        }
+        return '';
+    }
+
+    /**
+     * 写入管道信息
+     *
+     * @param string $msg
+     */
+    public function writePipe(string $msg) {
+        try {
+            $file = $this->__pid_dir . DIRECTORY_SEPARATOR . 'pipe';
+            @file_put_contents($file, $msg);
+        } catch (\Throwable $ex) {
+            Utils::catchError($this->_logger, $ex);
+        }
+    }
+
+    /**
+     * 读取管道信息
+     *
+     * @return string
+     */
+    public function readPipe(): string {
+        $file = $this->__pid_dir . DIRECTORY_SEPARATOR . 'pipe';
+        try {
+            return @file_get_contents($file);
+        } catch (\Throwable $ex) {
+            Utils::catchError($this->_logger, $ex);
+        } finally {
+            is_file($file) && @unlink($file);
         }
         return '';
     }

@@ -21,3 +21,5 @@ $console->process()->onWorkerInit(function () {
 });
 
 $console->run();
+
+\Swoole\Event::wait();

@@ -322,10 +322,13 @@ HELP;
             echo 'program is not running' . PHP_EOL;
             return;
         }
-        if (@\Swoole\Process::kill($pid, SIGUSR2)) {
-            $dir = Config::getConfig('process', 'data_dir');
-            echo 'program status was updated; detail in the file ' . $dir . DIRECTORY_SEPARATOR . 'status.info' . PHP_EOL;
+        if (!@\Swoole\Process::kill($pid, SIGUSR2)) {
+            return;
         }
+        $dir = Config::getConfig('process', 'data_dir');
+        echo 'program status was updated; detail in the file ' . $dir . DIRECTORY_SEPARATOR . 'status.info' . PHP_EOL;
+        usleep(1000 * 500);
+        echo $master_process->readPipe();
     }
 
     /**

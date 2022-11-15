@@ -31,8 +31,8 @@ class Console {
         $this->setProcessUser();
 
         //初始化日志实例
-        Logger::regist(Config::getConfig('log', 'log_dir'), Config::getConfig('log', 'log_file', 'application.log'), '__MAIN__', Config::getConfig('log', 'log_level', ''));
-        Logger::regist(Config::getConfig('log', 'log_dir'), Config::getConfig('process', 'process_log_file', 'process.log'), 'PROCESS', Config::getConfig('log', 'log_level', ''));
+        Logger::regist(Config::get('log.log_dir'), Config::get('log.log_file', 'application.log'), '__MAIN__', Config::get('log.log_level', ''));
+        Logger::regist(Config::get('log.log_dir'), Config::get('process.process_log_file', 'process.log'), 'PROCESS', Config::get('log.log_level', ''));
 
         //初始化对象
         $this->_logger = Logger::getLogger();
@@ -61,7 +61,7 @@ class Console {
     }
 
     public function setProcessUser() {
-        $config = Config::getConfig('process');
+        $config = Config::get('process');
         if (empty($config)) {
             return;
         }
@@ -249,7 +249,7 @@ HELP;
     public function checkConfig() {
         try {
             //topic
-            $topics_config = Config::getConfig('topics');
+            $topics_config = Config::get('topics');
             if (empty($topics_config)) {
                 throw new \Exception('config<topics> is empty');
             }
@@ -265,7 +265,7 @@ HELP;
                 }
             }
             //queue
-            $config = Config::getConfig('queue');
+            $config = Config::get('queue');
             if (empty($config)) {
                 throw new \Exception('config<queue> is empty');
             }
@@ -325,7 +325,7 @@ HELP;
         if (!@\Swoole\Process::kill($pid, SIGUSR2)) {
             return;
         }
-        $dir = Config::getConfig('process', 'data_dir');
+        $dir = Config::get('process.data_dir');
         echo 'program status was updated; detail in the file ' . $dir . DIRECTORY_SEPARATOR . 'status.info' . PHP_EOL;
         usleep(1000 * 500);
         echo $master_process->readPipe();
@@ -351,7 +351,7 @@ HELP;
 
         $class = '';
 
-        $topics_config = Config::getConfig('topics');
+        $topics_config = Config::get('topics');
         foreach ($topics_config as $topic_info) {
             if (isset($topic_info['command'])) {
                 if ($topic_info['command'] === $command) {

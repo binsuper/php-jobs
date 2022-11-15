@@ -16,7 +16,7 @@ use Swoole\Timer;
  */
 class Process {
 
-    const VERSION        = '1.23.1';
+    const VERSION        = '1.24';
     const STATUS_RUNNING = 'running';   //运行中
     const STATUS_WAIT    = 'wait';      //等待所有子进程平滑结束
     const STATUS_STOP    = 'stop';      //停止
@@ -121,7 +121,7 @@ class Process {
     private $__monitors = [];
 
     public function __construct() {
-        $config = Config::getConfig('process');
+        $config = Config::get('process');
         if (empty($config) || empty($config['data_dir'])) {
             die('config process.data_dir must be set' . PHP_EOL);
         }
@@ -139,7 +139,7 @@ class Process {
         $this->__dynamic_idle_time = $config['dynamic_idle_time'] ?? 0;
         $this->__queue_health_size = $config['queue_health_size'] ?? 0;
         $this->__monitor_interval  = $config['monitor_interval'] ?? 60000;
-        $this->__delay_queue       = Config::getConfig('queue', '__delay__', []) ?? false;
+        $this->__delay_queue       = Config::get('queue.__delay__', []) ?? false;
         Utils::mkdir($this->__pid_dir);
         Utils::mkdir($this->__worker_info_dir);
 
@@ -148,7 +148,7 @@ class Process {
         }
 
         // 监视器
-        $monitors = Config::getConfig('monitor', '', []);
+        $monitors = Config::get('monitor', []);
         foreach ($monitors as $monitor) {
             $this->__monitors[] = new $monitor();
         }
@@ -358,7 +358,7 @@ class Process {
      * 注册topic
      */
     protected function _registTopics() {
-        $topics_config = Config::getConfig('topics');
+        $topics_config = Config::get('topics');
         foreach ($topics_config as $topic_info) {
             $topic = new Topic($topic_info);
             if ($this->__opt_delay_enable) {
@@ -384,7 +384,7 @@ class Process {
             $this->__topics[] = $topic;
 
             $this->__topic_info[$topic->getName()] = [
-                'show_name' => $topic->getShowName()
+                'obj' => $topic
             ];
         }
     }
@@ -453,19 +453,24 @@ class Process {
                         $update_status_ticker = time();
                         try {
                             $info = [
-                                'pid'       => getmypid(),
-                                'now'       => date('Y-m-d H:i:s'),
-                                'duration'  => intval($worker->getDuration()) . 's', //已运行时长
-                                'topic'     => $topic->getName(),
-                                'type'      => $worker->getType(), //子进程类型
-                                'status'    => $job->idleTime() > 30 ? 'idle' : 'running',
-                                'done'      => $job->doneCount(), //已完成的任务数
-                                'failed'    => $job->failedCount(), //拒绝的任务数量
-                                'ack'       => $job->ackCount(), //正确应答的消息数量
-                                'reject'    => $job->rejectCount(), //拒绝的消息数量
-                                'avg_time'  => $job->avgTime(), //任务执行平均时长
-                                'idle_time' => intval($job->idleTime()) . 's', //已闲置的时长
-                                'mem_usage' => Utils::getMemoryUsage(), // 内存占用
+                                'pid'          => getmypid(),
+                                'now'          => date('Y-m-d H:i:s'),
+                                'duration'     => intval($worker->getDuration()) . 's', //已运行时长
+                                'topic'        => $topic->getName(),
+                                'type'         => $worker->getType(), //子进程类型
+                                'status'       => $job->idleTime() > 30 ? 'idle' : 'running',
+                                'done'         => $job->doneCount(), //已完成的任务数
+                                'failed'       => $job->failedCount(), //拒绝的任务数量
+                                'ack'          => $job->ackCount(), //正确应答的消息数量
+                                'reject'       => $job->rejectCount(), //拒绝的消息数量
+                                'avg_time'     => $job->avgTime(true), //任务执行平均时长
+                                'avg_time_num' => $job->avgTime(), //任务执行平均时长
+                                'max_time'     => $job->maxTime(true), //任务执行最大时长
+                                'max_time_num' => $job->maxTime(), //任务执行平均时长
+                                'min_time'     => $job->minTime(true), //任务执行最小时长
+                                'min_time_num' => $job->minTime(), //任务执行平均时长
+                                'idle_time'    => intval($job->idleTime()) . 's', //已闲置的时长
+                                'mem_usage'    => Utils::getMemoryUsage(), // 内存占用
                             ];
                             $this->_saveWorkerStatus($info);
                         } catch (\Throwable $ex) {
@@ -980,22 +985,23 @@ class Process {
     public function showStatus() {
         //主进程信息
         $str = '---------------------------------------------' . $this->_processName . ' status-----------------------------------------------' . PHP_EOL;
-        $str .= PHP_EOL . '#system' . PHP_EOL;
+        $str .= PHP_EOL . '#SYSTEM' . PHP_EOL;
         $str .= "user: \t\t\t" . $this->__user . PHP_EOL;
         $str .= "php_version: \t\t" . PHP_VERSION . PHP_EOL;
         $str .= "swoole_version: \t" . SWOOLE_VERSION . PHP_EOL;
         $str .= "php-jobs_version: \t" . self::VERSION . PHP_EOL;
 
-        $str .= PHP_EOL . '#rumtime' . PHP_EOL;
+        $str .= PHP_EOL . '#RUNTIME' . PHP_EOL;
         $str .= "start_at: \t\t" . date('Y-m-d H:i:s', $this->__begin_time) . PHP_EOL;
         $str .= "now: \t\t\t" . date('Y-m-d H:i:s') . PHP_EOL;
         $str .= "duration: \t\t" . floor((time() - $this->__begin_time) / 86400) . ' days ' . floor(((time() - $this->__begin_time) % 86400) / 3600) . ' hours' . PHP_EOL;
         $str .= "loadavg: \t\t" . Utils::getSysLoadAvg() . PHP_EOL;
         $str .= "memory_used: \t\t" . Utils::getMemoryUsage() . PHP_EOL;
 
-        $str .= PHP_EOL . '#master' . PHP_EOL;
+        $str .= PHP_EOL . '#MASTER' . PHP_EOL;
         $str .= "master_pid: \t\t" . $this->__pid . PHP_EOL;
         $str .= "master_status: \t\t" . $this->__status . PHP_EOL;
+        $str .= "topic_num: \t\t" . count($this->__topics) . PHP_EOL;
         $str .= "woker_num: \t\t" . count($this->__workers) . PHP_EOL;
 
         if ($this->__opt_delay_enable) {
@@ -1006,14 +1012,19 @@ class Process {
             }
         }
 
-        $str .= PHP_EOL . '#topic' . PHP_EOL;
-        $str .= ' --------------------------------------------------------------------------------------' . PHP_EOL;
-        $str .= ' ' . Utils::formatTablePrint(['', 'Topic', 'Done', 'Failed', 'Ack', 'Reject']) . PHP_EOL;
-        $str .= ' --------------------------------------------------------------------------------------' . PHP_EOL;
+        $str .= PHP_EOL . '#TOPIC' . PHP_EOL;
+        $str .= ' -------------------------------------------------------------------------------------------------------------------' . PHP_EOL;
+        $str .= ' ' . Utils::formatTablePrint(['', 'Topic', 'Worker', 'MaxNum', 'AvgTime', 'Done', 'Failed', 'Ack', 'Reject']) . PHP_EOL;
+        $str .= ' -------------------------------------------------------------------------------------------------------------------' . PHP_EOL;
         foreach ($this->__topic_info as $topic_name => $info) {
+            /** @var Topic $obj */
+            $obj = $info['obj'];
             $str .= ' ' . Utils::formatTablePrint([
                     '',
-                    $info['show_name'] ?? ($topic_name ?? '-'),
+                    $obj->getShowName(),
+                    $obj->workerNum(),
+                    $obj->maxWorkerNum(),
+                    $info['avgTime'] ?? '-',
                     $info['done'] ?? '-',
                     $info['failed'] ?? '-',
                     $info['ack'] ?? '-',
@@ -1022,7 +1033,7 @@ class Process {
         }
 
         //header
-        $str .= PHP_EOL . '#worker' . PHP_EOL;
+        $str .= PHP_EOL . '#WORKER' . PHP_EOL;
         $str .= ' -----------------------------------------------------------------------------------------------------------------------------------------------------------------------' . PHP_EOL;
         $str .= ' ' . Utils::formatTablePrint(['Pid', 'Topic', 'Type', 'Queue', 'Status', 'Runtime', 'Idletime', 'AvgTime', 'Done', 'Failed', 'Ack', 'Reject', 'Mem', 'Now']) . PHP_EOL;
         $str .= ' -----------------------------------------------------------------------------------------------------------------------------------------------------------------------' . PHP_EOL;
@@ -1063,6 +1074,7 @@ class Process {
                     ]) . PHP_EOL;
             }
         }
+
         return $str;
     }
 
@@ -1149,10 +1161,11 @@ class Process {
             if (false !== $info) {
                 $topic = $worker->getTopic();
                 if ($topic) {
-                    $this->__topic_info[$topic->getName()]['done']   = ($this->__topic_info[$topic->getName()]['done'] ?? 0) + intval($info['done']);
-                    $this->__topic_info[$topic->getName()]['failed'] = ($this->__topic_info[$topic->getName()]['failed'] ?? 0) + intval($info['failed']);
-                    $this->__topic_info[$topic->getName()]['ack']    = ($this->__topic_info[$topic->getName()]['ack'] ?? 0) + intval($info['ack']);
-                    $this->__topic_info[$topic->getName()]['reject'] = ($this->__topic_info[$topic->getName()]['reject'] ?? 0) + intval($info['reject']);
+                    $this->__topic_info[$topic->getName()]['done']    = ($this->__topic_info[$topic->getName()]['done'] ?? 0) + intval($info['done']);
+                    $this->__topic_info[$topic->getName()]['failed']  = ($this->__topic_info[$topic->getName()]['failed'] ?? 0) + intval($info['failed']);
+                    $this->__topic_info[$topic->getName()]['ack']     = ($this->__topic_info[$topic->getName()]['ack'] ?? 0) + intval($info['ack']);
+                    $this->__topic_info[$topic->getName()]['reject']  = ($this->__topic_info[$topic->getName()]['reject'] ?? 0) + intval($info['reject']);
+                    $this->__topic_info[$topic->getName()]['avgTime'] = $info['avg_time'];
                 }
             }
 

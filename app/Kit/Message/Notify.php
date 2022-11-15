@@ -20,7 +20,7 @@ class Notify {
         if (static::$__notifier == NULL) {
             static::$__notifier = [];
             //消息模块
-            $notifier = Config::getConfig('notifier', '', []);
+            $notifier = Config::get('notifier', []);
             foreach ($notifier as $name => $node) {
                 $class  = $node['class'] ?? false;
                 $params = $node['params'] ?? [];

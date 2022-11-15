@@ -54,7 +54,7 @@ class Test implements IConsumer, ICommand {
      */
     public function execute(array $params) {
         $producer = new Producer();
-        $producer->setDeliverer(new RedisDeliverer(Config::getConfig('queue', 'default')));
+        $producer->setDeliverer(new RedisDeliverer(Config::get('queue.default')));
 
         var_dump($producer->getDeliverer()
                           ->channel('phpjob')

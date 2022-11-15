@@ -2,6 +2,8 @@
 
 namespace Gino\Jobs\Core;
 
+use Gino\Phplib\ArrayObject;
+
 /**
  * 配置信息
  *
@@ -9,7 +11,10 @@ namespace Gino\Jobs\Core;
  */
 class Config {
 
-    private static $__cfg = [];
+    /**
+     * @var ArrayObject
+     */
+    private static $__cfg = null;
 
     /**
      * 设置配置信息
@@ -17,7 +22,7 @@ class Config {
      * @param array $config
      */
     public static function setConfig(array $config) {
-        self::$__cfg = $config;
+        self::$__cfg = new ArrayObject($config);
     }
 
     /**
@@ -28,18 +33,25 @@ class Config {
      * @param mixed $default 默认返回值，当配置项名称不存在时返回该参数值
      * @return mixed
      */
-    public static function getConfig(string $section = '', string $key = '', $default = null) {
-        if ($section === '') {
-            if ($key === '') {
-                return self::$__cfg;
-            }
-            return self::$__cfg[$key] ?? $default;
-        } else {
-            if ($key === '') {
-                return self::$__cfg[$section] ?? $default;
-            }
-            return isset(self::$__cfg[$section]) ? (self::$__cfg[$section][$key] ?? $default) : $default;
+    public static function getConfig(string $key = '', $default = null) {
+        return static::get($key, $default);
+    }
+
+    /**
+     * 获取配置信息
+     *
+     * @param string $key 配置项名称，不填时默认返回全部配置信息
+     * @param mixed $default 默认返回值，当配置项名称不存在时返回该参数值
+     * @return mixed
+     */
+    public static function get(string $key = '', $default = null) {
+        if (is_null(static::$__cfg)) {
+            static::$__cfg = new ArrayObject();
         }
+        if($key == ''){
+            return static::$__cfg->all();
+        }
+        return static::$__cfg->get($key, $default);
     }
 
 }

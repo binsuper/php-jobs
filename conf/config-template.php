@@ -1,6 +1,10 @@
 <?php
 
 return array(
+    // 应用配置
+    'app'      => [
+        'name' => 'php-job-app',
+    ],
     //日志模块
     'log'      => [
         'log_dir'   => GINO_JOBS_ROOT_PATH . '/var/logs', //日志存储的目录
@@ -43,7 +47,7 @@ return array(
             'options' => ['locale' => 'zh_CN'] // 配置项
         ],
         /**
-        // 延迟队列，使用 redis 实现延迟消息投递
+          // 延迟队列，使用 redis 实现延迟消息投递
         '__delay__' => [ // redis 配置
             'class'            => \Gino\Jobs\Core\Queue\Delay\Queue::class,
             'host'             => '123456',

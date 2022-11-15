@@ -22,7 +22,4 @@ $console->process()->onWorkerInit(function () {
 
 $console->run();
 
-// swoole4.6 以上版本，接入laravel框架时需要加入下面的异常处理，才不会导致主进程挂掉, Swoole\Event::rshutdown(): Event::wait() in shutdown function is deprecated
-set_error_handler(function ($level, $message, $file = '', $line = 0, $context = []) {
-    Utils::catchError(Logger::getLogger(), new \ErrorException($message, 0, $level, $file, $line));
-});
+\Swoole\Event::wait();

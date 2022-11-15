@@ -2,8 +2,6 @@
 
 namespace Gino\Jobs\Core;
 
-use Cassandra\Time;
-use Gino\Jobs\Core\IFace\IHandler;
 use Gino\Jobs\Core\IFace\IMonitor;
 use Gino\Jobs\Core\Exception\ExitException;
 use Gino\Jobs\Core\IFace\IQueueDelay;
@@ -12,16 +10,16 @@ use Swoole\Coroutine;
 use Swoole\Timer;
 
 /**
- * 进程管理
+ * process management
  *
  * @author GinoHuang <binsuper@126.com>
  */
 class Process {
 
-    const VERSION        = '1.23';
+    const VERSION        = '1.23.1';
     const STATUS_RUNNING = 'running';   //运行中
     const STATUS_WAIT    = 'wait';      //等待所有子进程平滑结束
-    const STATUS_STOP    = 'stop';      //运行中
+    const STATUS_STOP    = 'stop';      //停止
 
     private static $__instance = null;
 
@@ -264,6 +262,7 @@ class Process {
         $this->_logger->flush();
 
         \Swoole\Timer::clearAll();
+        \Swoole\Event::wait();
         sleep(1);
         try {
             exit();
@@ -447,7 +446,7 @@ class Process {
                 }
                 try {
                     //执行任务
-                    $job->run();
+                    $count = $job->run();
 
                     //更新子进程状态
                     if ($update_status_ticker < time() - 5) { //5秒间隔
@@ -456,7 +455,7 @@ class Process {
                             $info = [
                                 'pid'       => getmypid(),
                                 'now'       => date('Y-m-d H:i:s'),
-                                'duration'  => strftime('%H:%M:%S', intval($worker->getDuration())), //已运行时长
+                                'duration'  => intval($worker->getDuration()) . 's', //已运行时长
                                 'topic'     => $topic->getName(),
                                 'type'      => $worker->getType(), //子进程类型
                                 'status'    => $job->idleTime() > 30 ? 'idle' : 'running',
@@ -475,6 +474,7 @@ class Process {
                     }
                     //结束条件
                     $where = true;
+                    // 检查是否正常运行
                     if (self::STATUS_RUNNING !== $this->__status) {
                         $where = false;
                     } //执行任务数限制
@@ -491,8 +491,24 @@ class Process {
                     if ($where && $job->idleTime() <= $this->__max_exeucte_time && $job->idleTime() > 30) {
                         sleep(3);
                     } // 执行的时间间隔
-                    else if ($where && $topic->getInterval() > 0) {
-                        usleep($topic->getInterval() * 1000);
+                    else if ($where && $count > 0 && $topic->getInterval() > 0) {
+                        // 每次执行时间不能过长，否则会一直阻塞进程
+                        $sleep_time     = $topic->getInterval() * 1000; // 毫秒
+                        $sleep_per_time = 1000 * 1000 * 1; // 秒
+                        while (true) {
+                            if ($sleep_time > $sleep_per_time) {
+                                $sleep_time -= $sleep_per_time;
+                                usleep($sleep_per_time);
+                            } else {
+                                usleep($sleep_time);
+                                break;
+                            }
+                            // 检查是否正常运行
+                            if (self::STATUS_RUNNING !== $this->__status) {
+                                $where = false;
+                                break;
+                            }
+                        };
                     }
                 } catch (ExitException $ex) {
                     $where = false;
@@ -506,6 +522,7 @@ class Process {
             $this->_logger->flush();
 
             \Swoole\Timer::clearAll();
+            \Swoole\Event::wait();
             sleep(1);
             try {
                 exit();
@@ -657,7 +674,6 @@ class Process {
                 });
 
                 \Swoole\Event::wait();
-
             });
 
             try {
@@ -701,6 +717,7 @@ class Process {
         //进程状态信息
         \Swoole\Process::signal(SIGUSR2, function ($signo) {
             $this->_saveMasterStatus();
+            $this->writePipe($this->showStatus());
         });
 
         //动态进程管理
@@ -950,7 +967,7 @@ class Process {
     protected function _checkMpid(Worker $worker) {
         if (!\Swoole\Process::kill($this->__pid, 0)) {
             $this->_logger->log("Master process exited, I [{$worker->getPID()}] also quit\n");
-            $worker->exitWorker();
+            $worker->exitWorker(true);
         }
     }
 
@@ -1062,6 +1079,37 @@ class Process {
             return $info;
         } catch (\Throwable $ex) {
             Utils::catchError($this->_logger, $ex);
+        }
+        return '';
+    }
+
+    /**
+     * 写入管道信息
+     *
+     * @param string $msg
+     */
+    public function writePipe(string $msg) {
+        try {
+            $file = $this->__pid_dir . DIRECTORY_SEPARATOR . 'pipe';
+            @file_put_contents($file, $msg);
+        } catch (\Throwable $ex) {
+            Utils::catchError($this->_logger, $ex);
+        }
+    }
+
+    /**
+     * 读取管道信息
+     *
+     * @return string
+     */
+    public function readPipe(): string {
+        $file = $this->__pid_dir . DIRECTORY_SEPARATOR . 'pipe';
+        try {
+            return @file_get_contents($file);
+        } catch (\Throwable $ex) {
+            Utils::catchError($this->_logger, $ex);
+        } finally {
+            is_file($file) && @unlink($file);
         }
         return '';
     }

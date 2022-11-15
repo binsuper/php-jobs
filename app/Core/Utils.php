@@ -62,7 +62,14 @@ class Utils {
         $str  = '';
         $rule = [10, 35, 10, 10, 10, 10, 10, 10, 8, 8, 8, 8, 8, 15];
         foreach ($columns as $i => $col) {
-            $str .= str_pad($col, ($rule[$i] ?? 0) < strlen($col) ? strlen($col) + 2 : ($rule[$i] ?? 0));
+            $min = $rule[$i] ?? 0;
+            $len = mb_strlen($col);
+            $xl  = strlen($col);
+            if ($xl !== $len) {
+                $min += ($xl - $len) / 2;
+            }
+            $v   = $min < $len ? ($len + 2) : $min;
+            $str .= str_pad($col, $v);
         }
         return $str;
     }

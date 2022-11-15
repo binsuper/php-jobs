@@ -4,6 +4,7 @@
 namespace Gino\Jobs\Kit\Monitor;
 
 
+use Gino\Jobs\Core\Config;
 use Gino\Jobs\Core\IFace\IMonitor;
 use Gino\Jobs\Core\Logger;
 use Gino\Jobs\Core\Topic;
@@ -98,7 +99,8 @@ class DefaultMonitor implements IMonitor {
         $failed     = $node['failed'] ?? 0;
         $reject     = $node['reject'] ?? 0;
 
-        $msg = '时间：' . date('Y-m-d H:i:s') . PHP_EOL;
+        $msg = '应用：' . Config::get('app.name', 'unkown') . PHP_EOL;
+        $msg .= '时间：' . date('Y-m-d H:i:s') . PHP_EOL;
         $msg .= "主题：{$topic_name}" . PHP_EOL;
         $msg .= '异常：' . PHP_EOL;
         if ($queue_size) {

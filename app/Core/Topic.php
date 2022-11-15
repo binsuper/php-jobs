@@ -40,19 +40,19 @@ class Topic {
     private $__handlers = null;
 
     public function __construct(array $topic_info) {
-        $this->__config = $topic_info;
-        $this->__min_workers = $topic_info['min_workers'] ?? 1;
-        $this->__max_workers = $topic_info['max_workers'] ?? 1;
-        $this->__topic_name = $topic_info['name'];
-        $this->__alias_name = $topic_info['alias'] ?? '';
-        $this->__action = $topic_info['action'];
+        $this->__config            = $topic_info;
+        $this->__min_workers       = $topic_info['min_workers'] ?? 1;
+        $this->__max_workers       = $topic_info['max_workers'] ?? 1;
+        $this->__topic_name        = $topic_info['name'];
+        $this->__alias_name        = $topic_info['alias'] ?? '';
+        $this->__action            = $topic_info['action'];
         $this->__trans_per_operate = $topic_info['tpo'] ?? 1;
-        $this->__interval = $topic_info['interval'] ?? 0;
+        $this->__interval          = $topic_info['interval'] ?? 0;
 
         if (!empty($topic_info['handler']) && is_array($topic_info['handler'])) {
-            foreach ($topic_info['handler'] as $opt){
+            foreach ($topic_info['handler'] as $opt) {
                 if (is_array($opt)) {
-                    $class = $opt[0];
+                    $class  = $opt[0];
                     $params = array_slice($opt, 1);
                 }
                 $this->__handlers[] = new $class($this, $params);
@@ -115,7 +115,7 @@ class Topic {
         try {
 
             $health_size = $this->getHealthSize();
-            $queue_size = $this->getQueueSize();
+            $queue_size  = $this->getQueueSize();
             if ($health_size == 0 || $health_size > $queue_size) {
                 return;
             }
@@ -174,9 +174,9 @@ class Topic {
     public function newJob() {
         $queue = Queue::getQueue($this);
         if (is_array($this->__action)) {
-            $class = $this->__action[0];
+            $class  = $this->__action[0];
             $params = array_slice($this->__action, 1);
-            $job = new $class(...$params);
+            $job    = new $class(...$params);
         } else {
             $job = new $this->__action();
         }
@@ -252,6 +252,24 @@ class Topic {
      */
     public function getHandlers() {
         return $this->__handlers;
+    }
+
+    /**
+     * worker数量
+     *
+     * @return int
+     */
+    public function workerNum(): int {
+        return count($this->__workers);
+    }
+
+    /**
+     * 最大worker数量
+     *
+     * @return int
+     */
+    public function maxWorkerNum(): int {
+        return $this->__max_workers;
     }
 
 }

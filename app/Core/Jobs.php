@@ -69,6 +69,16 @@ class Jobs {
     private $__cost_time;
 
     /**
+     * @var float 最大执行时长
+     */
+    private $__max_time;
+
+    /**
+     * @var float 最小执行时长
+     */
+    private $__min_time;
+
+    /**
      * @var int
      */
     private $__tpo = [];
@@ -88,10 +98,12 @@ class Jobs {
     /**
      * 得到任务空闲的时长
      *
-     * @return float 空闲时长(整数为秒)
+     * @param bool $format
+     * @return string|float 空闲时长(整数为秒)
      */
-    public function idleTime() {
-        return bcsub(microtime(true), $this->__last_busy_time, 10);
+    public function idleTime(bool $format = false) {
+        $time = bcsub(microtime(true), $this->__last_busy_time, 10);
+        return $format ? $this->formatTime($time) : $time;
     }
 
     /**
@@ -125,17 +137,46 @@ class Jobs {
     /**
      * 任务的平均用时
      *
-     * @return string
+     * @param bool $format
+     * @return string|float
      */
-    public function avgTime() {
+    public function avgTime(bool $format = false) {
         if ($this->__done_count == 0 || $this->__cost_time == 0) {
             return 0 . 'ms';
         }
         $avg = bcdiv($this->__cost_time, $this->__done_count, 6);
-        if (bccomp($avg, 10) > 0) {
-            return round($avg, 2) . 's';
+        return $format ? $this->formatTime($avg) : $avg;
+    }
+
+    /**
+     * 最大执行时间
+     *
+     * @return string
+     * @return string|float
+     */
+    public function maxTime(bool $format = false) {
+        return $format ? $this->formatTime($this->__max_time) : $this->__max_time;
+    }
+
+    /**
+     * 最小执行时间
+     *
+     * @return string
+     * @return string|float
+     */
+    public function minTime(bool $format = false) {
+        return $format ? $this->formatTime($this->__min_time) : $this->__min_time;
+    }
+
+    /**
+     * @param $time
+     * @return string
+     */
+    public function formatTime($time) {
+        if (bccomp($this->__max_time, 10) > 0) {
+            return round($this->__max_time, 2) . 's';
         }
-        return round(($avg * 1000), 1) . 'ms';
+        return round(($this->__max_time * 1000), 1) . 'ms';
     }
 
     /**
@@ -151,9 +192,8 @@ class Jobs {
             }
             $count = 1;
         } else {
-            $is_group    = true;
-            $error_times = 0;
-            $msg         = new QueueMsgGroup();
+            $is_group = true;
+            $msg      = new QueueMsgGroup();
             for ($i = 0; $i < $this->__tpo; $i++) {
                 $o_msg = $this->__queue->pop();
                 if (null !== $o_msg) {
@@ -179,7 +219,10 @@ class Jobs {
             if ($this->__job->consume($msg)) {
                 $this->__done_count++;
                 $this->__last_busy_time = microtime(true);
-                $this->__cost_time      = bcadd($this->__cost_time, bcsub(microtime(true), $before_time, 10), 10);
+                $duration               = bcsub($this->__last_busy_time, $before_time, 10);
+                $this->__cost_time      = bcadd($this->__cost_time, $duration, 10);
+                $this->__max_time       = max($this->__max_time, $duration);
+                $this->__min_time       = $this->__min_time > 0 ? min($this->__min_time, $duration) : $duration;
             } else {
                 $this->__failed_count++;
             }

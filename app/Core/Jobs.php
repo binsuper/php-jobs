@@ -141,13 +141,15 @@ class Jobs {
     /**
      * 执行
      */
-    public function run() {
+    public function run(): int {
         $is_group = false;
+        $count    = 0;
         if ($this->__tpo == 1) {
             $msg = $this->__queue->pop();
             if (null === $msg) {
-                return;
+                return 0;
             }
+            $count = 1;
         } else {
             $is_group    = true;
             $error_times = 0;
@@ -159,15 +161,15 @@ class Jobs {
                 } else {
                     if (count($msg) == 0) {
                         unset($msg);
-                        return;
+                        return 0;
                     }
                     break;
                 }
             }
-
-            if (count($msg) == 0) {
+            $count = count($msg);
+            if ($count == 0) {
                 unset($msg);
-                return;
+                return 0;
             }
         }
 
@@ -197,6 +199,7 @@ class Jobs {
             Utils::catchError(Logger::getLogger(), $ex);
             $this->__failed_count++;
         }
+        return $count;
     }
 
 }

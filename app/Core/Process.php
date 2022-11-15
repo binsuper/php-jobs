@@ -19,7 +19,7 @@ class Process {
     const VERSION        = '1.23.1';
     const STATUS_RUNNING = 'running';   //运行中
     const STATUS_WAIT    = 'wait';      //等待所有子进程平滑结束
-    const STATUS_STOP    = 'stop';      //运行中
+    const STATUS_STOP    = 'stop';      //停止
 
     private static $__instance = null;
 
@@ -446,7 +446,7 @@ class Process {
                 }
                 try {
                     //执行任务
-                    $job->run();
+                    $count = $job->run();
 
                     //更新子进程状态
                     if ($update_status_ticker < time() - 5) { //5秒间隔
@@ -474,6 +474,7 @@ class Process {
                     }
                     //结束条件
                     $where = true;
+                    // 检查是否正常运行
                     if (self::STATUS_RUNNING !== $this->__status) {
                         $where = false;
                     } //执行任务数限制
@@ -490,8 +491,24 @@ class Process {
                     if ($where && $job->idleTime() <= $this->__max_exeucte_time && $job->idleTime() > 30) {
                         sleep(3);
                     } // 执行的时间间隔
-                    else if ($where && $topic->getInterval() > 0) {
-                        usleep($topic->getInterval() * 1000);
+                    else if ($where && $count > 0 && $topic->getInterval() > 0) {
+                        // 每次执行时间不能过长，否则会一直阻塞进程
+                        $sleep_time     = $topic->getInterval() * 1000; // 毫秒
+                        $sleep_per_time = 1000 * 1000 * 1; // 秒
+                        while (true) {
+                            if ($sleep_time > $sleep_per_time) {
+                                $sleep_time -= $sleep_per_time;
+                                usleep($sleep_per_time);
+                            } else {
+                                usleep($sleep_time);
+                                break;
+                            }
+                            // 检查是否正常运行
+                            if (self::STATUS_RUNNING !== $this->__status) {
+                                $where = false;
+                                break;
+                            }
+                        };
                     }
                 } catch (ExitException $ex) {
                     $where = false;

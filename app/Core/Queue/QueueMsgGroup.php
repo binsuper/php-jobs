@@ -14,7 +14,7 @@ class QueueMsgGroup extends \ArrayObject implements IQueueMessage {
     private $__reject_count = 0;
 
     public function __toString() {
-        return parent::__toString();
+        return '';
     }
 
     /**
@@ -28,14 +28,16 @@ class QueueMsgGroup extends \ArrayObject implements IQueueMessage {
      * @inheritDoc
      */
     public function ack(): bool {
-        throw new UnsupportException();
+        $this->__ack_count++;
+        return true;
     }
 
     /**
      * @inheritDoc
      */
     public function reject(bool $requeue): bool {
-        throw new UnsupportException();
+        $this->__reject_count++;
+        return true;
     }
 
     /**

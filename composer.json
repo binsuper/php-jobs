@@ -17,7 +17,8 @@
         "ext-json": "*",
         "ext-swoole": "^4.6",
         "binsuper/phplib": "^0.4.0",
-        "ext-bcmath": "*"
+        "ext-bcmath": "*",
+        "ext-curl": "*"
     },
     "autoload": {
         "psr-4": {

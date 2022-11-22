@@ -17,7 +17,7 @@ class TimeTick extends DefaultHandler implements IAutomatic {
 
     public function auto(): void {
         $queue = Queue::getQueue($this->getTopic(), false);
-        if(!$queue->clear()){
+        if (!$queue->clear($this->getTopic()->getName())) {
             Logger::getLogger()->warning(sprintf('clear queue <%s> failed', $queue->getQueueName()));
         }
         $time = $this->getParams()[0] ?? 1000; // 默认1秒

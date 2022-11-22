@@ -47,7 +47,7 @@ class Topic {
         $this->__alias_name        = $topic_info['alias'] ?? '';
         $this->__action            = $topic_info['action'];
         $this->__trans_per_operate = $topic_info['tpo'] ?? 1;
-        $this->__interval          = $topic_info['interval'] ?? 1; // 默认 1ms, 能有效降低CPU占用率
+        $this->__interval          = $topic_info['interval'] ?? 0;
 
         if (!empty($topic_info['handler']) && is_array($topic_info['handler'])) {
             foreach ($topic_info['handler'] as $opt) {

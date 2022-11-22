@@ -375,7 +375,7 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
                     throw new ConnectionException();
                 }
                 try {
-                    $this->__channel->wait(null, true, 3);
+                    $this->__channel->wait(null, false, 0.001);
                     return array_pop($this->__data_queue);
                 } catch (AMQPTimeoutException $ex) { //超时，不做处理
                 } catch (AMQPProtocolChannelException $ex) {

@@ -213,10 +213,10 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
      *
      * @return bool
      */
-    public function clear(): bool {
+    public function clear(string $queue_name = ''): bool {
         try {
-            $ret = $this->_command(function () {
-                return $this->_handler->del($this->_queue_name);
+            $ret = $this->_command(function () use ($queue_name) {
+                return $this->_handler->del($queue_name ?: $this->_queue_name);
             });
             if ($ret) {
                 return true;

@@ -55,9 +55,10 @@ interface IQueueDriver {
     /**
      * 清除数据
      *
+     * @param string $queue_name
      * @return bool
      */
-    public function clear(): bool;
+    public function clear(string $queue_name = ''): bool;
 
     /**
      * 关闭

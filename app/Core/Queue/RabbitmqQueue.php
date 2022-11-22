@@ -478,13 +478,13 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
      *
      * @return bool
      */
-    public function clear(): bool {
+    public function clear(string $queue_name = ''): bool {
         try {
-            return $this->__command(function () {
+            return $this->__command(function () use ($queue_name) {
                 if (!$this->__channel) {
                     throw new ConnectionException();
                 }
-                $this->__channel->queue_purge($this->__queue_name);
+                $this->__channel->queue_purge($queue_name ?: $this->__queue_name);
                 return true;
             });
         } catch (\Exception $ex) {

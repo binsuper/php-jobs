@@ -16,7 +16,7 @@
         "ext-posix": "*",
         "ext-json": "*",
         "ext-swoole": "^4.6",
-        "binsuper/phplib": "^0.4.0"
+        "binsuper/phplib": "^0.5.0"
     },
     "autoload": {
         "psr-4": {

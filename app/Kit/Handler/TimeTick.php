@@ -8,6 +8,7 @@ namespace Gino\Jobs\Kit\Handler;
 use Gino\Jobs\Core\IFace\IAutomatic;
 use Gino\Jobs\Core\Logger;
 use Gino\Jobs\Core\Queue\Queue;
+use Gino\Jobs\Core\Queue\RabbitmqQueue;
 use Gino\Jobs\Core\Utils;
 use Swoole\Timer;
 
@@ -17,6 +18,7 @@ class TimeTick extends DefaultHandler implements IAutomatic {
 
     public function auto(): void {
         $queue = Queue::getQueue($this->getTopic(), false);
+        
         if (!$queue->clear($this->getTopic()->getName())) {
             Logger::channel()->warning(sprintf('clear queue <%s> failed', $queue->getQueueName()));
         }

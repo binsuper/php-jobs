@@ -30,12 +30,12 @@ class Utils {
     public static function catchError($logger, ?\Throwable $ex = null) {
 
         if ($logger instanceof Logger) {
-            $logger = $logger::channel();
+            $logger = $logger::channel('error');
         } else if ($logger instanceof \Throwable) {
             $ex     = $logger;
-            $logger = Logger::channel();
+            $logger = Logger::channel('error');
         } else if (is_null($logger)) {
-            $logger = Logger::channel();
+            $logger = Logger::channel('error');
         }
 
         $error = PHP_EOL . 'Error Type：' . get_class($ex) . PHP_EOL;

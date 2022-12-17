@@ -23,7 +23,7 @@ class Logger implements ILogger {
     private static $__instance = null;
 
     /** @var ActuallyLogger */
-    private static $__logger = null;
+    private $__logger = null;
 
     /** deprecated */
     private $__log_dir = ''; //日志目录
@@ -49,6 +49,7 @@ class Logger implements ILogger {
     private $__sw_locks = []; //文件锁
 
     public function __construct(string $log_dir = '', string $log_file = '') {
+        $this->__logger = new ActuallyLogger(Config::get('log'));
     }
 
     /**
@@ -90,7 +91,7 @@ class Logger implements ILogger {
             return $this;
         }
 
-        $logger = static::logger();
+        $logger = $this->__logger;
 
         $channel = 'channels.' . $category;
         if ($logger->getConfig()->has($channel)) {
@@ -215,11 +216,8 @@ class Logger implements ILogger {
     /**
      * @return ActuallyLogger
      */
-    private static function logger(): ActuallyLogger {
-        if (is_null(static::$__logger)) {
-            static::$__logger = new ActuallyLogger(Config::get('log'));
-        }
-        return static::$__logger;
+    private function logger(): ActuallyLogger {
+        return $this->__logger;
     }
 
     /**
@@ -229,7 +227,7 @@ class Logger implements ILogger {
      * @return Executor
      */
     public static function channel(string $channel = ''): Executor {
-        return static::logger()->channel($channel);
+        return static::getLogger()->initCategory($channel)->logger()->channel($channel);
     }
 
 }

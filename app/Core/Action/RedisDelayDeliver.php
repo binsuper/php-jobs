@@ -22,18 +22,18 @@ class RedisDelayDeliver implements IConsumer {
      * @return bool 执行成功返回true, 执行失败返回false
      */
     public function consume(IQueueMessage $msg): bool {
-        $logger = Logger::getLogger();
+        $logger = Logger::channel('delay');
         try {
             $data = json_decode($msg->getBody(), true);
             if (!$data) {
                 //无法解析的消息直接丢弃
-                $logger->log('unresolved data. msg: ' . (string) $msg, Logger::LEVEL_ERROR, 'delay');
+                $logger->error('unresolved data. msg: ' . (string) $msg);
                 $msg->reject(false);
                 return false;
             }
             if (empty($data['target']) || empty($data['delay']) || empty($data['payload'])) {
                 //异常的消息直接丢弃
-                $logger->log('incomplete data. msg: ' . (string) $msg, Logger::LEVEL_ERROR, 'delay');
+                $logger->error('incomplete data. msg: ' . (string) $msg);
                 $msg->reject(false);
                 return false;
             }

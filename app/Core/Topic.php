@@ -131,9 +131,9 @@ class Topic {
                 call_user_func($callback);
             }
         } catch (\Exception $ex) {
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
         } catch (\Throwable $ex) {
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
         }
     }
 

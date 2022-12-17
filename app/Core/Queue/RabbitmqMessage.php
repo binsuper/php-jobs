@@ -67,9 +67,9 @@ class RabbitmqMessage extends BaseQueueMessage {
                 $this->_channel->basic_ack($this->_msg->delivery_info['delivery_tag']);
                 return true;
             } catch (\Exception $ex) {
-                Utils::catchError(Logger::getLogger(), $ex);
+                Utils::catchError($ex);
             } catch (\Throwable $ex) {
-                Utils::catchError(Logger::getLogger(), $ex);
+                Utils::catchError($ex);
             }
         } while (--$try_times > 0);
         throw new ExitException();
@@ -90,9 +90,9 @@ class RabbitmqMessage extends BaseQueueMessage {
                 $this->_channel->basic_reject($this->_msg->delivery_info['delivery_tag'], $requeue);
                 return true;
             } catch (\Exception $ex) {
-                Utils::catchError(Logger::getLogger(), $ex);
+                Utils::catchError($ex);
             } catch (\Throwable $ex) {
-                Utils::catchError(Logger::getLogger(), $ex);
+                Utils::catchError($ex);
             }
         } while (--$try_times > 0);
         throw new ExitException();

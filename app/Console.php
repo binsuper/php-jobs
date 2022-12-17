@@ -7,6 +7,7 @@ use Gino\Jobs\Core\Logger;
 use Gino\Jobs\Core\Config;
 use Gino\Jobs\Core\Process;
 use Gino\Jobs\Core\Utils;
+use Gino\Phplib\ArrayObject;
 
 /**
  * 控制台
@@ -15,27 +16,56 @@ use Gino\Jobs\Core\Utils;
  */
 class Console {
 
-    protected $_logger;
     private   $__run_opts = [];
     private   $__run_args = [];
 
     public function __construct(array $config) {
         //检测配置信息
-        if (empty($config['log']) || empty($config['log']['log_dir'])) {
-            die('config log.log_dir must be set' . PHP_EOL);
+        if (empty($config['log'])) {
+            die('config log must be set' . PHP_EOL);
         }
 
         //初始化配置
-        Config::setConfig($config);
+        Config::setConfig($this->getCompatibleConfig($config));
 
         $this->setProcessUser();
+    }
 
-        //初始化日志实例
-        Logger::regist(Config::get('log.log_dir'), Config::get('log.log_file', 'application.log'), '__MAIN__', Config::get('log.log_level', ''));
-        Logger::regist(Config::get('log.log_dir'), Config::get('process.process_log_file', 'process.log'), 'PROCESS', Config::get('log.log_level', ''));
+    /**
+     * 配置兼容处理
+     *
+     * @param array $config
+     * @return array
+     */
+    public function getCompatibleConfig(array $config): array {
+        $config = ArrayObject::from($config);
 
-        //初始化对象
-        $this->_logger = Logger::getLogger();
+        // 兼容日志模块
+        if ($config->has('log.log_dir')) {
+            $config->set('log', [
+                'default'  => 'app',
+                'channels' => [
+                    'app' => [
+                        'driver'      => 'daily',
+                        'path'        => $config->get('log.log_dir') . DIRECTORY_SEPARATOR . $config->get('log.log_file'),
+                        'level'       => $config->get('log.log_level'),
+                        'days'        => 180,
+                        'line-format' => '[%datetime%] [PID.' . getmypid() . '] %channel%.%level_name%:  %message% %context% %extra%' . PHP_EOL,
+                        'line-breaks' => true,
+                        'line-tidy'   => true,
+                    ],
+                    'process' => [
+                        'driver'      => 'daily',
+                        'path'        => $config->get('log.log_dir') . DIRECTORY_SEPARATOR . 'process' . DIRECTORY_SEPARATOR . $config->get('process.process_log_file'),
+                        'level'       => $config->get('log.log_level'),
+                        'days'        => 180,
+                        'line-format' => '[%datetime%] [PID.' . getmypid() . '] %channel%.%level_name%: %message% %context% %extra%' . PHP_EOL,
+                    ]
+                ]
+            ]);
+        }
+
+        return $config->toArray();
     }
 
     /**
@@ -107,7 +137,6 @@ class Console {
         switch ($act) {
             case 'help': //打印帮助信息
                 $this->printHelpMessage();
-                $this->_logger->flush();
                 break;
             case 'start': //开始运行
                 $this->start($this->__run_opts);
@@ -213,7 +242,7 @@ HELP;
                 }
             }
         } catch (\Exception $ex) {
-            Core\Utils::catchError($this->_logger, $ex);
+            Core\Utils::catchError($ex);
             echo 'stop error' . PHP_EOL;
         }
         return false;
@@ -286,12 +315,12 @@ HELP;
                 }
             }
         } catch (\Exception $ex) {
-            Core\Utils::catchError($this->_logger, $ex);
+            Core\Utils::catchError($ex);
             echo 'the configuration syntax is error;' . PHP_EOL;
             echo 'error: ' . $ex->getMessage() . PHP_EOL;
             exit();
         } catch (\Throwable $ex) {
-            Core\Utils::catchError($this->_logger, $ex);
+            Core\Utils::catchError($ex);
             echo 'the configuration syntax is error;' . PHP_EOL;
             echo 'error: ' . $ex->getMessage() . PHP_EOL;
             exit();
@@ -377,7 +406,7 @@ HELP;
         try {
             (new $class())->execute(array_slice($args, 1));
         } catch (\Throwable $ex) {
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
             die($ex->getMessage() . PHP_EOL);
         }
 

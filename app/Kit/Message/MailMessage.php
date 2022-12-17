@@ -60,7 +60,7 @@ class MailMessage implements \Gino\Jobs\Core\IFace\INotifier {
 
             unset($mail);
         } catch (\Exception $ex) {
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
         }
 
     }

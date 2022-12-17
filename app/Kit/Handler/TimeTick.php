@@ -18,7 +18,7 @@ class TimeTick extends DefaultHandler implements IAutomatic {
     public function auto(): void {
         $queue = Queue::getQueue($this->getTopic(), false);
         if (!$queue->clear($this->getTopic()->getName())) {
-            Logger::getLogger()->warning(sprintf('clear queue <%s> failed', $queue->getQueueName()));
+            Logger::channel()->warning(sprintf('clear queue <%s> failed', $queue->getQueueName()));
         }
         $time = $this->getParams()[0] ?? 1000; // 默认1秒
         $msg  = json_encode($this->getParams()[1] ?? []);
@@ -27,7 +27,7 @@ class TimeTick extends DefaultHandler implements IAutomatic {
             try {
                 $queue->push($msg, $this->getTopic()->getName());
             } catch (\Throwable $ex) {
-                Utils::catchError(Logger::getLogger(), $ex);
+                Utils::catchError($ex);
             }
         });
     }
@@ -36,7 +36,7 @@ class TimeTick extends DefaultHandler implements IAutomatic {
         try {
             Timer::clear($this->timer_id);
         } catch (\Throwable $ex) {
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
         }
 
 

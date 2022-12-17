@@ -381,15 +381,15 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
                 } catch (AMQPProtocolChannelException $ex) {
 
                 } catch (\Exception $ex) {
-                    Utils::catchError(Logger::getLogger(), $ex);
+                    Utils::catchError($ex);
                     throw new ConnectionException($ex->getMessage());
                 } catch (\Throwable $ex) {
-                    Utils::catchError(Logger::getLogger(), $ex);
+                    Utils::catchError($ex);
                     throw new ConnectionException($ex->getMessage());
                 }
             });
         } catch (\Exception $ex) {
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
             return null;
         }
         if (empty($data)) {
@@ -467,7 +467,7 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
                 return true;
             });
         } catch (\Exception $ex) {
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
             return false;
         }
     }
@@ -488,7 +488,7 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
                 return true;
             });
         } catch (\Exception $ex) {
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
             return false;
         }
     }

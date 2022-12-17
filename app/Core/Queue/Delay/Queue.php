@@ -47,7 +47,7 @@ class Queue extends RedisQueue implements IQueueDelay {
                 $this->delay_slot = intval($this->delay_slot) % 60;
             }
         } catch (\Throwable $ex) {
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
             return;
         }
         //更新slot
@@ -56,7 +56,7 @@ class Queue extends RedisQueue implements IQueueDelay {
                 return $this->_handler->incr($slot_key);
             });
         } catch (\Throwable $ex) {
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
             return;
         }
         $slot             = $this->delay_slot;
@@ -70,7 +70,7 @@ class Queue extends RedisQueue implements IQueueDelay {
                     return $this->_handler->lLen($delay_queue);
                 });
             } catch (\Throwable $ex) {
-                Utils::catchError(Logger::getLogger(), $ex);
+                Utils::catchError($ex);
                 return;
             }
             while ($count && $count-- > 0) {
@@ -110,7 +110,7 @@ class Queue extends RedisQueue implements IQueueDelay {
                     }
 
                 } catch (\Throwable $ex) {
-                    Utils::catchError(Logger::getLogger(), $ex);
+                    Utils::catchError($ex);
                 }
             }
         });
@@ -131,7 +131,7 @@ class Queue extends RedisQueue implements IQueueDelay {
                 return $this->_handler->get($slot_key) ?: 0;
             });
         } catch (\Throwable $ex) {
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
             return false;
         }
         $delay++; //往后加一秒，保证任务不会提前触发
@@ -165,7 +165,7 @@ class Queue extends RedisQueue implements IQueueDelay {
             }
             return false;
         } catch (\Exception $ex) {
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
             return false;
         }
     }

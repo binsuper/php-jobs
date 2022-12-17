@@ -181,7 +181,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
             $msg  = new RedisMessage($this, $data);
             return $msg;
         } catch (\Exception $ex) {
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
             return null;
         }
     }
@@ -289,7 +289,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
                 $this->delay_slot = intval($this->delay_slot) % 60;
             }
         } catch (\Throwable $ex) {
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
             return;
         }
         //更新slot
@@ -298,7 +298,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
                 return $this->_handler->incr($slot_key);
             });
         } catch (\Throwable $ex) {
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
             return;
         }
         $slot             = $this->delay_slot;
@@ -312,7 +312,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
                     return $this->_handler->lLen($delay_queue);
                 });
             } catch (\Throwable $ex) {
-                Utils::catchError(Logger::getLogger(), $ex);
+                Utils::catchError($ex);
                 return;
             }
             while ($count && $count-- > 0) {
@@ -352,7 +352,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
                     }
 
                 } catch (\Throwable $ex) {
-                    Utils::catchError(Logger::getLogger(), $ex);
+                    Utils::catchError($ex);
                 }
             }
         });
@@ -373,7 +373,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
                 return $this->_handler->get($slot_key) ?: 0;
             });
         } catch (\Throwable $ex) {
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
             return false;
         }
         $delay++; //往后加一秒，保证任务不会提前触发
@@ -408,7 +408,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
             }
             return false;
         } catch (\Exception $ex) {
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
             return false;
         }
     }

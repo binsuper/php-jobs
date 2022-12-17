@@ -6,6 +6,7 @@ use Gino\Jobs\Core\IFace\IMonitor;
 use Gino\Jobs\Core\Exception\ExitException;
 use Gino\Jobs\Core\IFace\IQueueDelay;
 use Gino\Jobs\Core\Queue\Delay\Message as DelayMessage;
+use Gino\Phplib\Log\Executor;
 use Swoole\Coroutine;
 use Swoole\Timer;
 
@@ -47,6 +48,7 @@ class Process {
      * 最大执行任务数量, 0为不限制
      *
      * @var int
+     * @deprecated
      */
     private $__max_exeucte_jobs = 0;
 
@@ -61,6 +63,7 @@ class Process {
      * 健康的队列长度, 超出后将启动动态进程
      *
      * @var int
+     * @deprecated
      */
     private $__queue_health_size = 0;
 
@@ -74,7 +77,7 @@ class Process {
     /**
      * 日志操作对象
      *
-     * @var Logger
+     * @var Executor
      */
     protected $_logger;
 
@@ -126,7 +129,7 @@ class Process {
             die('config process.data_dir must be set' . PHP_EOL);
         }
 
-        $this->_logger             = Logger::getLogger();
+        $this->_logger             = Logger::channel('process');
         $this->__user              = $config['user'] ?? '';
         $this->__pid_dir           = $config['data_dir'];
         $this->__pid_file          = $this->__pid_dir . DIRECTORY_SEPARATOR . $this->__pid_file;
@@ -258,8 +261,7 @@ class Process {
 
         @unlink($this->__pid_file);
         @unlink($this->__pid_info_file);
-        $this->_logger->log('master process exit', Logger::LEVEL_INFO, $this->__process_log_file);
-        $this->_logger->flush();
+        $this->_logger->info('master process exit');
 
         \Swoole\Timer::clearAll();
         \Swoole\Event::wait();
@@ -289,7 +291,7 @@ class Process {
      * @throws \RuntimeException
      */
     private function __setMasterInfo(array $data) {
-        $this->_logger->log('master status: ' . $data['status'], Logger::LEVEL_INFO, $this->__process_log_file, true);
+        $this->_logger->info('master status: ' . $data['status']);
         if (!file_put_contents($this->__pid_info_file, json_encode($data, JSON_PRETTY_PRINT))) {
             throw new \RuntimeException('can not save master-info file with pid:' . $this->__pid);
         }
@@ -374,10 +376,10 @@ class Process {
                 if (!$pid) {
                     $errno  = swoole_errno();
                     $errmsg = swoole_strerror($errno);
-                    $this->_logger->log("worker start failed, it will exited later; \nERRNO: {$errno}\nERRMSG: {$errmsg}", Logger::LEVEL_ERROR, 'error');
+                    $this->_logger->error("worker start failed, it will exited later; \nERRNO: {$errno}\nERRMSG: {$errmsg}");
                     $this->waitWorkers();
                 } else {
-                    $this->_logger->log("worker start, PID={$pid}, TYPE=" . Worker::TYPE_STATIC, Logger::LEVEL_INFO, $this->__process_log_file, true);
+                    $this->_logger->info("worker start, PID={$pid}, TYPE=" . Worker::TYPE_STATIC);
                 }
             });
 
@@ -409,7 +411,7 @@ class Process {
             try {
                 $this->_notify('worker_init', $worker);
             } catch (\Throwable $ex) {
-                Utils::catchError($this->_logger, $ex);
+                Utils::catchError($ex);
             }
 
             try {
@@ -418,11 +420,11 @@ class Process {
                     throw new ExitException('topic(' . $topic->getName() . '): no job');
                 }
             } catch (\Exception $ex) {
-                Utils::catchError($this->_logger, $ex);
+                Utils::catchError($ex);
                 $this->notifyMasterExited();
                 return;
             } catch (\Throwable $ex) {
-                Utils::catchError($this->_logger, $ex);
+                Utils::catchError($ex);
                 $this->notifyMasterExited();
                 return;
             }
@@ -474,7 +476,7 @@ class Process {
                             ];
                             $this->_saveWorkerStatus($info);
                         } catch (\Throwable $ex) {
-                            Utils::catchError($this->_logger, $ex);
+                            Utils::catchError($ex);
                         }
                     }
                     //结束条件
@@ -519,12 +521,11 @@ class Process {
                     $where = false;
                 } catch (\Throwable $ex) {
                     $where = true;
-                    Utils::catchError($this->_logger, $ex);
+                    Utils::catchError($ex);
                 }
             } while ($where);
             unset($job);
             // $this->_saveWorkerStatus([], true);
-            $this->_logger->flush();
 
             \Swoole\Timer::clearAll();
             \Swoole\Event::wait();
@@ -544,13 +545,13 @@ class Process {
             try {
                 $this->_notify('worker_start', $worker);
             } catch (\Throwable $ex) {
-                Utils::catchError($this->_logger, $ex);
+                Utils::catchError($ex);
             }
 
         } catch (\Exception $ex) {
-            Utils::catchError($this->_logger, $ex);
+            Utils::catchError($ex);
         } catch (\Throwable $ex) {
-            Utils::catchError($this->_logger, $ex);
+            Utils::catchError($ex);
         }
         return $pid;
     }
@@ -577,18 +578,8 @@ class Process {
                         $data                      = $this->getMasterInfo();
                         $this->__status            = $data['status'];
                         $this->__status_updatetime = microtime(true);
-                        //flush log
-                        Coroutine::create(function () use ($data) {
-                            $flush = $data['flush'] ?? false;
-                            if (false !== $flush && time() - $flush <= 30) {
-                                if (!isset($this->__flush_time) || $this->__flush_time < $flush) {
-                                    $this->__flush_time = $flush;
-                                    $this->_logger->flush();
-                                }
-                            }
-                        });
                     } catch (\Throwable $ex) {
-                        Utils::catchError($this->_logger, $ex);
+                        Utils::catchError($ex);
                     }
 
                     if (self::STATUS_RUNNING !== $this->__status) { // 非运行状态
@@ -625,7 +616,7 @@ class Process {
                             ];
                             $this->_saveWorkerStatus($info);
                         } catch (\Throwable $ex) {
-                            Utils::catchError($this->_logger, $ex);
+                            Utils::catchError($ex);
                         }
                     }
                 });
@@ -641,7 +632,7 @@ class Process {
                         try {
                             $queue = Queue\Queue::getDelayQueue();
                         } catch (\Throwable $ex) {
-                            Utils::catchError($this->_logger, $ex);
+                            Utils::catchError($ex);
                             Timer::clear($timer_id);
                             return;
                         }
@@ -673,7 +664,7 @@ class Process {
                         });
                         unset($queue);
                     } catch (\Throwable $ex) {
-                        Utils::catchError($this->_logger, $ex);
+                        Utils::catchError($ex);
                     }
 
                 });
@@ -687,14 +678,14 @@ class Process {
                     $this->__workers[$pid] = $worker;
                 }
             } catch (\Exception $ex) {
-                Utils::catchError($this->_logger, $ex);
+                Utils::catchError($ex);
             } catch (\Throwable $ex) {
-                Utils::catchError($this->_logger, $ex);
+                Utils::catchError($ex);
             }
             return $pid;
 
         } catch (\Throwable $ex) {
-            Utils::catchError($this->_logger, $ex);
+            Utils::catchError($ex);
         }
         return false;
     }
@@ -753,7 +744,7 @@ class Process {
                     try {
                         $this->_notify('worker_stop', $worker);
                     } catch (\Throwable $ex) {
-                        Utils::catchError($this->_logger, $ex);
+                        Utils::catchError($ex);
                     }
 
                     //主进程正常运行且子进程是静态类型，则重启该进程
@@ -775,13 +766,13 @@ class Process {
                         if (!$new_pid) { //重启失败
                             $errno  = swoole_errno();
                             $errmsg = swoole_strerror($errno);
-                            $this->_logger->log("worker process restart failed, it will exited later; \nERRNO: {$errno}\nERRMSG: {$errmsg}", Logger::LEVEL_ERROR, 'error', true);
+                            $this->_logger->error("worker process restart failed, it will exited later; \nERRNO: {$errno}\nERRMSG: {$errmsg}");
                             $this->waitWorkers();
                             continue;
                         }
-                        $this->_logger->log("worker restart, SIGNAL={$signo}, PID={$new_pid}, TYPE={$worker->getType()}", Logger::LEVEL_INFO, $this->__process_log_file, true);
+                        $this->_logger->info("worker restart, SIGNAL={$signo}, PID={$new_pid}, TYPE={$worker->getType()}");
                     } else {
-                        $this->_logger->log("worker exit, SIGNAL={$signo}, PID={$pid}, TYPE={$worker->getType()}", Logger::LEVEL_INFO, $this->__process_log_file, true);
+                        $this->_logger->info("worker exit, SIGNAL={$signo}, PID={$pid}, TYPE={$worker->getType()}");
                     }
                     //释放worker资源
                     if ($worker) {
@@ -789,14 +780,14 @@ class Process {
                     }
                     //主进程状态为WAIT且所有子进程退出, 则主进程安全退出
                     if (empty($this->__workers) && $this->__status == self::STATUS_WAIT) {
-                        $this->_logger->log('all workers exit, master exit security', Logger::LEVEL_INFO, $this->__process_log_file);
+                        $this->_logger->info('all workers exit, master exit security');
                         $this->_exit();
                     }
                 }
             } catch (\Exception $ex) {
-                Utils::catchError($this->_logger, $ex);
+                Utils::catchError($ex);
             } catch (\Throwable $ex) {
-                Utils::catchError($this->_logger, $ex);
+                Utils::catchError($ex);
             }
         });
     }
@@ -826,7 +817,7 @@ class Process {
                          */
                         $monitor->start();
                     } catch (\Throwable $ex) {
-                        Utils::catchError($this->_logger, $ex);
+                        Utils::catchError($ex);
                     }
                 }
 
@@ -853,7 +844,7 @@ class Process {
                                     $monitor->processing($pid, $topic, $info);
                                 }
                             } catch (\Throwable $ex) {
-                                Utils::catchError($this->_logger, $ex);
+                                Utils::catchError($ex);
                             }
                         }
                     }
@@ -866,7 +857,7 @@ class Process {
                          */
                         $monitor->finish();
                     } catch (\Throwable $ex) {
-                        Utils::catchError($this->_logger, $ex);
+                        Utils::catchError($ex);
                     }
                 }
 
@@ -887,7 +878,7 @@ class Process {
                 }
                 if ($info && !empty($info['now'])) {
                     if (time() - strtotime($info['now']) > 1800) { // 半小时没有更新状态
-                        $this->_logger->log("worker exception, PID={$pid}, kill it now", Logger::LEVEL_ERROR, $this->__process_log_file, true);
+                        $this->_logger->error("worker exception, PID={$pid}, kill it now");
                         @\Swoole\Process::kill($pid, SIGKILL); // 强制杀死进程
                     }
                 }
@@ -907,12 +898,12 @@ class Process {
                     }
                     $pid = $this->_forkWorker($topic, Worker::TYPE_DYNAMIC);
                     if ($pid) {
-                        $this->_logger->log("worker start, PID={$pid}, TYPE=" . Worker::TYPE_DYNAMIC, Logger::LEVEL_INFO, $this->__process_log_file, true);
+                        $this->_logger->info("worker start, PID={$pid}, TYPE=" . Worker::TYPE_DYNAMIC);
                     }
                 });
             }
         } catch (\Throwable $ex) {
-            Utils::catchError($this->_logger, $ex);
+            Utils::catchError($ex);
         }
     }
 
@@ -921,7 +912,7 @@ class Process {
      */
     protected function _killMaster() {
         $this->__status = self::STATUS_STOP;
-        $this->_logger->log('master process receive signal(SIGTEM|SIGKILL), then will be kill all workers', Logger::LEVEL_INFO, $this->__process_log_file);
+        $this->_logger->info('master process receive signal(SIGTEM|SIGKILL), then will be kill all workers');
         $this->_killWorkers();
         $this->_exit();
     }
@@ -934,8 +925,8 @@ class Process {
             foreach ($this->__workers as $pid => $worker) {
                 \Swoole\Process::kill($pid);
                 unset($this->__workers[$pid]);
-                $this->_logger->log('worker was killed, PID=' . $pid, Logger::LEVEL_INFO, $this->__process_log_file);
-                $this->_logger->log('worker count: ' . count($this->__workers), Logger::LEVEL_INFO, $this->__process_log_file);
+                $this->_logger->info('worker was killed, PID=' . $pid);
+                $this->_logger->info('worker count: ' . count($this->__workers));
             }
         }
     }
@@ -948,7 +939,7 @@ class Process {
         $data           = $this->getMasterInfo();
         $data['status'] = $this->__status;
         $this->__setMasterInfo($data);
-        $this->_logger->log('wait workers quit', Logger::LEVEL_INFO, $this->__process_log_file, true);
+        $this->_logger->info('wait workers quit');
         //特殊情况下，此时所有子进程全部都已经结束，则直接安全退出
         if (empty($this->__workers) && getmypid() == ($data['pid'] ?? -1)) {
             $this->_exit();
@@ -971,7 +962,7 @@ class Process {
      */
     protected function _checkMpid(Worker $worker) {
         if (!\Swoole\Process::kill($this->__pid, 0)) {
-            $this->_logger->log("Master process exited, I [{$worker->getPID()}] also quit\n");
+            $this->_logger->info("Master process exited, I [{$worker->getPID()}] also quit\n");
             $worker->exitWorker(true);
         }
     }
@@ -1090,7 +1081,7 @@ class Process {
             @file_put_contents($file, "\n\n" . $info, FILE_APPEND);
             return $info;
         } catch (\Throwable $ex) {
-            Utils::catchError($this->_logger, $ex);
+            Utils::catchError($ex);
         }
         return '';
     }
@@ -1105,7 +1096,7 @@ class Process {
             $file = $this->__pid_dir . DIRECTORY_SEPARATOR . 'pipe';
             @file_put_contents($file, $msg);
         } catch (\Throwable $ex) {
-            Utils::catchError($this->_logger, $ex);
+            Utils::catchError($ex);
         }
     }
 
@@ -1119,7 +1110,7 @@ class Process {
         try {
             return @file_get_contents($file);
         } catch (\Throwable $ex) {
-            Utils::catchError($this->_logger, $ex);
+            Utils::catchError($ex);
         } finally {
             is_file($file) && @unlink($file);
         }
@@ -1245,7 +1236,7 @@ class Process {
                 });
             }
         } catch (\Throwable $ex) {
-            Utils::catchError($this->_logger, $ex);
+            Utils::catchError($ex);
             throw $ex;
         }
 

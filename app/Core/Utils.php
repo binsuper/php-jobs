@@ -2,6 +2,8 @@
 
 namespace Gino\Jobs\Core;
 
+use Gino\Phplib\Log\Executor;
+
 /**
  * 工具
  *
@@ -22,16 +24,28 @@ class Utils {
     /**
      * 捕捉错误和异常
      *
-     * @param Logger $logger
-     * @param \Exception|\Error $ex
+     * @param Executor|\Exception|\Error|null $logger
+     * @param \Throwable|null $ex
      */
-    public static function catchError(Logger $logger, $ex) {
+    public static function catchError($logger, ?\Throwable $ex = null) {
+
+        if ($logger instanceof Logger) {
+            $logger = $logger::channel();
+        } else if ($logger instanceof \Throwable) {
+            $ex     = $logger;
+            $logger = Logger::channel();
+        } else if (is_null($logger)) {
+            $logger = Logger::channel();
+        }
+
         $error = PHP_EOL . 'Error Type：' . get_class($ex) . PHP_EOL;
         $error .= 'Error Code：' . $ex->getCode() . PHP_EOL;
         $error .= 'Error Msg：' . $ex->getMessage() . PHP_EOL;
         $error .= 'Error File：' . $ex->getFile() . '(' . $ex->getLine() . ')' . PHP_EOL;
         $error .= 'Error Strace：' . $ex->getTraceAsString() . PHP_EOL;
-        $logger->log($error, Logger::LEVEL_ERROR, 'error', true);
+
+        /** @var Executor $logger */
+        $logger->error($error);
     }
 
     /**

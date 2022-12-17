@@ -7,16 +7,39 @@ return array(
     ],
     //日志模块
     'log'      => [
-        'log_dir'   => GINO_JOBS_ROOT_PATH . '/var/logs', //日志存储的目录
-        'log_file'  => 'application.log', //系统日志文件
-        'log_level' => 'debug', //日志级别, [debug, notice, warning, info, error]
+        /* 兼容配置
+            'log_dir'   => GINO_JOBS_ROOT_PATH . '/var/logs', //日志存储的目录
+            'log_file'  => 'application.log', //系统日志文件
+            'log_level' => 'debug', // 日志级别, [debug, info, notice, warning, error, critical, alert, emergency]
+        */
+        'default'  => 'app',
+        'channels' => [
+            'app'     => [
+                'driver'      => 'daily',
+                'path'        => GINO_JOBS_ROOT_PATH . '/var/logs/app.log',
+                'level'       => 'debug', // 日志级别, [debug, info, notice, warning, error, critical, alert, emergency]
+                'days'        => 180,
+                'line-format' => '[%datetime%] [PID.' . getmypid() . '] %channel%.%level_name%:  %message% %context% %extra%' . PHP_EOL,
+                'line-breaks' => true,
+                'line-tidy'   => true,
+            ],
+            'process' => [
+                'driver'      => 'daily',
+                'path'        => GINO_JOBS_ROOT_PATH . '/var/logs/process/process.log',
+                'level'       => 'debug',
+                'days'        => 180,
+                'line-format' => '[%datetime%] [PID.' . getmypid() . '] %channel%.%level_name%: %message% %context% %extra%' . PHP_EOL,
+            ]
+        ],
+        'drivers'  => [],
+
     ],
     //进程模块
     'process'  => [
         'user'              => 'www:www', //启动用户
         'data_dir'          => GINO_JOBS_ROOT_PATH . '/var/data', //数据目录
         'process_name'      => ' :php-jobs', //设置进程的名称
-        'process_log_file'  => 'process.log', //进程日志文件
+//        'process_log_file'  => 'process.log', //进程日志文件
         'max_execute_time'  => 1200, //子进程最长执行时间(秒, 0为不限制)，防止内存泄漏
         'max_execute_jobs'  => 1000, //子进程最多执行任务数量(0为不限制)，防止内存泄漏
         'dynamic_idle_time' => 600, //动态子进程闲置的最长时间(0为不限制)
@@ -47,15 +70,15 @@ return array(
             'options' => ['locale' => 'zh_CN'] // 配置项
         ],
         /**
-          // 延迟队列，使用 redis 实现延迟消息投递
-        '__delay__' => [ // redis 配置
-            'class'            => \Gino\Jobs\Core\Queue\Delay\Queue::class,
-            'host'             => '123456',
-            'port'             => 6379,
-            'pass'             => '123456',
-            'db'               => 0,
-            'delay_queue_name' => 'php-jobs-delay' //延迟队列的名称
-        ],
+         * // 延迟队列，使用 redis 实现延迟消息投递
+         * '__delay__' => [ // redis 配置
+         * 'class'            => \Gino\Jobs\Core\Queue\Delay\Queue::class,
+         * 'host'             => '123456',
+         * 'port'             => 6379,
+         * 'pass'             => '123456',
+         * 'db'               => 0,
+         * 'delay_queue_name' => 'php-jobs-delay' //延迟队列的名称
+         * ],
          */
     ],
     //任务模块

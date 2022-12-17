@@ -1,8 +1,4 @@
 <?php
-
-use Gino\Jobs\Core\Logger;
-use Gino\Jobs\Core\Utils;
-
 define('GINO_JOBS_ROOT_PATH', __DIR__);
 define('GINO_JOBS_CONFIG_PATH', GINO_JOBS_ROOT_PATH . '/conf/config.php');
 

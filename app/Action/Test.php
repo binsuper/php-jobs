@@ -33,13 +33,13 @@ class Test implements IConsumer, ICommand {
                 /**
                  * @var $m IQueueMessage
                  */
-                Logger::getLogger()->log('receive msgs： ' . $m->getBody());
+                Logger::channel()->info('receive msgs： ' . $m->getBody());
                 $m->ack();
             }
             $msg->acks(count($msg));
             return true;
         } else {
-            Logger::getLogger()->log('receive msg： ' . $msg->getBody());
+            Logger::channel()->info('receive msg： ' . $msg->getBody());
             if (rand(0, 1) == 1) {
                 $msg->reject(false);
             } else {

@@ -91,7 +91,7 @@ class Notify {
             }
             $tmpInfo = curl_exec($curl); // 执行操作
         } catch (\Throwable $ex) {
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
         } finally {
             curl_close($curl); // 关闭CURL会话
         }

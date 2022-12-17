@@ -12,7 +12,7 @@ interface ILogger {
 
     /**
      * 记录日志
-     * 
+     *
      * @param string $msg 信息
      * @param string $level 级别
      * @param string $category 日志分类
@@ -22,6 +22,9 @@ interface ILogger {
 
     /**
      * 刷新日志缓冲区
+     *
+     * @deprecated
      */
     public function flush();
+
 }

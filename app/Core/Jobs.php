@@ -239,7 +239,7 @@ class Jobs {
             }
         } catch (\Throwable $ex) {
             //消费时发生错误
-            Utils::catchError(Logger::getLogger(), $ex);
+            Utils::catchError($ex);
             $this->__failed_count++;
         }
         return $count;

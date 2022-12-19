@@ -17,17 +17,17 @@ class TimeTick extends DefaultHandler implements IAutomatic {
     protected $timer_id = null;
 
     public function auto(): void {
-        $queue = Queue::getQueue($this->getTopic(), false);
-        
-        if (!$queue->clear($this->getTopic()->getName())) {
+        $queue = Queue::getQueueByTopic($this->getTopic());
+
+        if (!$queue->clear()) {
             Logger::channel()->warning(sprintf('clear queue <%s> failed', $queue->getQueueName()));
         }
         $time = $this->getParams()[0] ?? 1000; // 默认1秒
         $msg  = json_encode($this->getParams()[1] ?? []);
 
-        $this->timer_id = Timer::tick($time, function () use ($queue, $msg) {
+        $this->timer_id = Timer::tick($time, function () use ($msg) {
             try {
-                $queue->push($msg, $this->getTopic()->getName());
+                Queue::getQueueByTopic($this->getTopic())->push($msg, $this->getTopic()->getName());
             } catch (\Throwable $ex) {
                 Utils::catchError($ex);
             }

@@ -21,7 +21,7 @@ class Queue extends RedisQueue implements IQueueDelay {
                 $slots = 60;
                 $count = 0;
                 while (--$slots >= 0) {
-                    $count += $this->_handler->lLen($this->_queue_name . '#' . $slots);
+                    $count += $this->conn->lLen($this->_queue_name . '#' . $slots);
                 }
                 return $count;
             });
@@ -42,7 +42,7 @@ class Queue extends RedisQueue implements IQueueDelay {
         try {
             if (!isset($this->delay_slot)) {
                 $this->delay_slot = $this->_command(function () use ($slot_key) {
-                    return $this->_handler->get($slot_key) ?: 0;
+                    return $this->conn->get($slot_key) ?: 0;
                 });
                 $this->delay_slot = intval($this->delay_slot) % 60;
             }
@@ -53,7 +53,7 @@ class Queue extends RedisQueue implements IQueueDelay {
         //更新slot
         try {
             $this->_command(function () use ($slot_key) {
-                return $this->_handler->incr($slot_key);
+                return $this->conn->incr($slot_key);
             });
         } catch (\Throwable $ex) {
             Utils::catchError($ex);
@@ -67,7 +67,7 @@ class Queue extends RedisQueue implements IQueueDelay {
             try {
                 $delay_queue = $this->_queue_name . '#' . $slot;
                 $count       = $this->_command(function () use ($delay_queue) {
-                    return $this->_handler->lLen($delay_queue);
+                    return $this->conn->lLen($delay_queue);
                 });
             } catch (\Throwable $ex) {
                 Utils::catchError($ex);
@@ -76,11 +76,11 @@ class Queue extends RedisQueue implements IQueueDelay {
             while ($count && $count-- > 0) {
                 try {
 
-                    $bodys = $this->_handler->lRange($delay_queue, -2000, -1);
+                    $bodys = $this->conn->lRange($delay_queue, -2000, -1);
                     if (empty($bodys)) {
                         break;
                     }
-                    $this->_handler->lTrim($delay_queue, 0, 0 - count($bodys) - 1);
+                    $this->conn->lTrim($delay_queue, 0, 0 - count($bodys) - 1);
                     $count -= count($bodys) + 1;
 
                     $backlist = [];
@@ -101,7 +101,7 @@ class Queue extends RedisQueue implements IQueueDelay {
                     }
 
                     if (!empty($backlist)) {
-                        $this->_handler->lPush($delay_queue, ...$backlist);
+                        $this->conn->lPush($delay_queue, ...$backlist);
                     }
 
                     // 返回false，则中断执行
@@ -128,7 +128,7 @@ class Queue extends RedisQueue implements IQueueDelay {
         $slot_key = $this->_queue_name . '#slot';
         try {
             $slot = $this->_command(function () use ($slot_key) {
-                return $this->_handler->get($slot_key) ?: 0;
+                return $this->conn->get($slot_key) ?: 0;
             });
         } catch (\Throwable $ex) {
             Utils::catchError($ex);
@@ -158,7 +158,7 @@ class Queue extends RedisQueue implements IQueueDelay {
     public function pushTarget(string $target_queue_name, string $msg): bool {
         try {
             $ret = $this->_command(function () use ($target_queue_name, $msg) {
-                return $this->_handler->lPush($target_queue_name, $msg);
+                return $this->conn->lPush($target_queue_name, $msg);
             });
             if ($ret) {
                 return true;

@@ -16,8 +16,8 @@ use Gino\Phplib\ArrayObject;
  */
 class Console {
 
-    private   $__run_opts = [];
-    private   $__run_args = [];
+    private $__run_opts = [];
+    private $__run_args = [];
 
     public function __construct(array $config) {
         //检测配置信息
@@ -45,7 +45,7 @@ class Console {
             $config->set('log', [
                 'default'  => 'app',
                 'channels' => [
-                    'app' => [
+                    'app'     => [
                         'driver'      => 'daily',
                         'path'        => $config->get('log.log_dir') . DIRECTORY_SEPARATOR . $config->get('log.log_file'),
                         'level'       => $config->get('log.log_level'),
@@ -297,22 +297,6 @@ HELP;
             $config = Config::get('queue');
             if (empty($config)) {
                 throw new \Exception('config<queue> is empty');
-            }
-            if (isset($config['class'])) {
-                $class = $config['class'];
-                if (!class_implements($class)[Core\IFace\IQueueDriver::class]) {
-                    throw new \Exception("queue driver($class) must implements class(" . Core\IFace\IQueueDriver::class . ')');
-                }
-            } else {
-                foreach ($config as $cfg) {
-                    if (!is_array($cfg)) {
-                        continue;
-                    }
-                    $class = $cfg['class'];
-                    if (!class_implements($class)[Core\IFace\IQueueDriver::class]) {
-                        throw new \Exception("queue driver($class) must implements class(" . Core\IFace\IQueueDriver::class . ')');
-                    }
-                }
             }
         } catch (\Exception $ex) {
             Core\Utils::catchError($ex);

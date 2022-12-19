@@ -2,14 +2,9 @@
 
 namespace Gino\Jobs\Core\Queue;
 
-use \Gino\Jobs\Core\IFace\{
-    IQueueMessage,
-    IQueueDriver,
-    IQueueProducer,
-    IQueueDelay
-};
+use Gino\Jobs\Core\Connection\RedisConnection;
+use Gino\Jobs\Core\IFace\{IConnection, IQueueMessage, IQueueDriver, IQueueProducer, IQueueDelay};
 use \Gino\Jobs\Core\Utils;
-use \Gino\Jobs\Core\Logger;
 
 /**
  *
@@ -17,74 +12,21 @@ use \Gino\Jobs\Core\Logger;
  */
 class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
 
-    private $__host;
-    private $__port;
-    private $__auth;
-    private $__db;
-
-    /**
-     * @var \Redis
-     */
-    protected $_handler;
     protected $_queue_name;
 
+    /** @var RedisConnection */
+    protected $conn;
+
     /**
-     * 获取连接
-     *
-     * @param array $config
-     * @param string $queue_name
-     * @return IQueueDriver 失败返回false
+     * @inheritDoc
      */
-    public static function getConnection(array $config, string $queue_name, array $topic_config = []) {
-        $config = array_merge($config, $topic_config);
-        return new self($config, $queue_name);
+    public static function make(string $queue_name, IConnection $conn, array $options = []): IQueueDriver {
+        return new self($queue_name, $conn);
     }
 
-    private function __construct(array $config, string $queue_name) {
+    private function __construct(string $queue_name, RedisConnection $conn) {
         $this->_queue_name = $queue_name;
-        $this->__host      = $config['host'] ?? '127.0.0.1';
-        $this->__port      = $config['port'] ?? 6379;
-        $this->__db        = $config['db'] ?? 0;
-        $this->__auth      = $config['pass'] ?? '';
-        $this->_handler    = new \Redis();
-        $this->__connect();
-    }
-
-    public function __destruct() {
-        try {
-            $this->close();
-        } catch (\Exception $ex) {
-
-        }
-    }
-
-    /**
-     * 连接Redis
-     *
-     * @throws \RedisException
-     */
-    private function __connect() {
-        try {
-            if (empty($this->__host) || empty($this->__port)) {
-                throw new \Exception('redis host or port is empty');
-            }
-            @$this->_handler->connect($this->__host, $this->__port, 3);
-            if (!empty($this->__auth)) {
-                $this->_handler->auth($this->__auth);
-            }
-            if (!empty($this->__db)) {
-                $this->_handler->select($this->__db);
-            }
-        } catch (\RedisException $ex) {
-            throw $ex;
-        }
-    }
-
-    /**
-     * @return bool
-     */
-    public function isConntected(): bool {
-        return $this->_handler->isConnected();
+        $this->conn        = $conn;
     }
 
     /**
@@ -95,27 +37,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
     public function size(): int {
         try {
             $len = $this->_command(function () {
-                return $this->_handler->lLen($this->_queue_name);
-            });
-            if (!$len) {
-                return 0;
-            }
-            return $len ?: 0;
-        } catch (\Exception $ex) {
-            return 0;
-        }
-    }
-
-    /**
-     * 获取指定队列的长度
-     *
-     * @param string $queue_name
-     * @return int
-     */
-    public function getQueueSize(string $queue_name): int {
-        try {
-            $len = $this->_command(function () use ($queue_name) {
-                return $this->_handler->lLen($queue_name);
+                return $this->conn->lLen($this->_queue_name);
             });
             if (!$len) {
                 return 0;
@@ -133,35 +55,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
      * @return mixed
      */
     protected function _command($callback) {
-        try {
-            return call_user_func($callback);
-        } catch (\RedisException $ex) {
-            if ($this->isConntected()) {
-                throw $ex;
-            }
-            $try_times = 0; //尝试3次重连执行
-            $last_ex   = null;
-            do {
-                //失败后重连
-                if ($try_times == 1) {
-                    sleep(1);
-                } else if ($try_times == 2) {
-                    sleep(5);
-                }
-                //尝试重连
-                try {
-                    if ($this->__connect()) {
-                        return call_user_func($callback);
-                    }
-                } catch (\RedisException $ex) {
-                    $last_ex = $ex;
-                }
-                $try_times++;
-            } while ($try_times <= 3);
-            if ($last_ex) {
-                throw $last_ex;
-            }
-        }
+        return $this->conn->retry($callback, 3, 1);
     }
 
     /**
@@ -172,7 +66,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
     public function pop() {
         try {
             $ret = $this->_command(function () {
-                return $this->_handler->brPop($this->_queue_name, 1);
+                return $this->conn->brPop($this->_queue_name, 1);
             });
             if (empty($ret)) {
                 return NULL;
@@ -196,7 +90,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
         try {
             $key = is_null($key) ? $this->_queue_name : $key;
             $ret = $this->_command(function () use ($body, $key) {
-                return $this->_handler->lPush($key, $body);
+                return $this->conn->lPush($key, $body);
             });
             if ($ret) {
                 return true;
@@ -216,7 +110,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
     public function clear(string $queue_name = ''): bool {
         try {
             $ret = $this->_command(function () use ($queue_name) {
-                return $this->_handler->del($queue_name ?: $this->_queue_name);
+                return $this->conn->del($queue_name ?: $this->_queue_name);
             });
             if ($ret) {
                 return true;
@@ -237,16 +131,6 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
         return $this->push($msg->getBody());
     }
 
-    /**
-     * 关闭
-     */
-    public function close() {
-        if ($this->_handler) {
-            $this->_handler->close();
-            $this->_handler = null;
-        }
-    }
-
     public function getQueueName(): string {
         return $this->_queue_name;
     }
@@ -263,7 +147,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
                 $slots = 60;
                 $count = 0;
                 while (--$slots >= 0) {
-                    $count += $this->_handler->lLen($this->_queue_name . '#' . $slots);
+                    $count += $this->conn->lLen($this->_queue_name . '#' . $slots);
                 }
                 return $count;
             });
@@ -284,7 +168,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
         try {
             if (!isset($this->delay_slot)) {
                 $this->delay_slot = $this->_command(function () use ($slot_key) {
-                    return $this->_handler->get($slot_key) ?: 0;
+                    return $this->conn->get($slot_key) ?: 0;
                 });
                 $this->delay_slot = intval($this->delay_slot) % 60;
             }
@@ -295,7 +179,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
         //更新slot
         try {
             $this->_command(function () use ($slot_key) {
-                return $this->_handler->incr($slot_key);
+                return $this->conn->incr($slot_key);
             });
         } catch (\Throwable $ex) {
             Utils::catchError($ex);
@@ -309,7 +193,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
             try {
                 $delay_queue = $this->_queue_name . '#' . $slot;
                 $count       = $this->_command(function () use ($delay_queue) {
-                    return $this->_handler->lLen($delay_queue);
+                    return $this->conn->lLen($delay_queue);
                 });
             } catch (\Throwable $ex) {
                 Utils::catchError($ex);
@@ -318,11 +202,11 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
             while ($count && $count-- > 0) {
                 try {
 
-                    $bodys = $this->_handler->lRange($delay_queue, -2000, -1);
+                    $bodys = $this->conn->lRange($delay_queue, -2000, -1);
                     if (empty($bodys)) {
                         break;
                     }
-                    $this->_handler->lTrim($delay_queue, 0, 0 - count($bodys) - 1);
+                    $this->conn->lTrim($delay_queue, 0, 0 - count($bodys) - 1);
                     $count -= count($bodys) + 1;
 
                     $backlist = [];
@@ -343,7 +227,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
                     }
 
                     if (!empty($backlist)) {
-                        $this->_handler->lPush($delay_queue, ...$backlist);
+                        $this->conn->lPush($delay_queue, ...$backlist);
                     }
 
                     // 返回false，则中断执行
@@ -370,7 +254,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
         $slot_key = $this->_queue_name . '#slot';
         try {
             $slot = $this->_command(function () use ($slot_key) {
-                return $this->_handler->get($slot_key) ?: 0;
+                return $this->conn->get($slot_key) ?: 0;
             });
         } catch (\Throwable $ex) {
             Utils::catchError($ex);
@@ -401,7 +285,7 @@ class RedisQueue implements IQueueDriver, IQueueProducer, IQueueDelay {
     public function pushTarget(string $target_queue_name, string $msg): bool {
         try {
             $ret = $this->_command(function () use ($target_queue_name, $msg) {
-                return $this->_handler->lPush($target_queue_name, $msg);
+                return $this->conn->lPush($target_queue_name, $msg);
             });
             if ($ret) {
                 return true;

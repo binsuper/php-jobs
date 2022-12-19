@@ -20,7 +20,7 @@ class Logger implements ILogger {
     const LEVEL_NOTICE  = 'notice';
     const LEVEL_DEBUG   = 'debug';
 
-    private static $__instance = null;
+    private static $__instance = [];
 
     /** @var ActuallyLogger */
     private $__logger = null;
@@ -49,7 +49,14 @@ class Logger implements ILogger {
     private $__sw_locks = []; //文件锁
 
     public function __construct(string $log_dir = '', string $log_file = '') {
-        $this->__logger = new ActuallyLogger(Config::get('log'));
+        $config             = Config::get('log');
+        $config['channels'] = array_map(function ($option) {
+            if (isset($option['line-format'])) {
+                $option['line-format'] = str_replace('%pid%', getmypid(), $option['line-format']);
+            }
+            return $option;
+        }, $config['channels']);
+        $this->__logger     = new ActuallyLogger($config);
     }
 
     /**
@@ -58,10 +65,11 @@ class Logger implements ILogger {
      * @return static
      */
     public static function getLogger() {
-        if (static::$__instance === null) {
-            static::$__instance = new static();
+        $pid = getmypid();
+        if (empty(static::$__instance[$pid])) {
+            static::$__instance[$pid] = new static();
         }
-        return static::$__instance;
+        return static::$__instance[$pid];
     }
 
     /**
@@ -74,10 +82,7 @@ class Logger implements ILogger {
      * @deprecated
      */
     public static function regist(string $log_dir, string $log_file = '', string $name = '__MAIN__', string $level = '') {
-        if (static::$__instance === null) {
-            static::$__instance = new static($log_dir, $log_file);
-        }
-        return static::$__instance;
+        return static::getLogger();
     }
 
     /**

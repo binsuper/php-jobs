@@ -642,7 +642,6 @@ class Process {
                         }
                         if (!($queue instanceof IQueueDelay)) { //不支持延迟队列
                             Timer::clear($timer_id);
-                            $queue->close();
                             unset($queue);
                             return;
                         }

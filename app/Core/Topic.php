@@ -143,8 +143,8 @@ class Topic {
      * @return int
      */
     public function getQueueSize() {
-        $queue = Queue::getQueue($this, false); //非消费者队列
-        return $queue->getQueueSize($this->__topic_name);
+        $queue = Queue::getQueueByTopic($this); //非消费者队列
+        return $queue->size();
     }
 
     /**
@@ -172,7 +172,7 @@ class Topic {
      * @return Jobs
      */
     public function newJob() {
-        $queue = Queue::getQueue($this);
+        $queue = Queue::getQueueByTopic($this);
         if (is_array($this->__action)) {
             $class  = $this->__action[0];
             $params = array_slice($this->__action, 1);
@@ -193,7 +193,7 @@ class Topic {
      * @throws \Exception
      */
     public function pushMsg(string $msg): bool {
-        $queue = Queue::getQueue($this, false); //非消费者队列
+        $queue = Queue::getQueueByTopic($this); //非消费者队列
         return $queue->push($msg) ? true : false;
     }
 

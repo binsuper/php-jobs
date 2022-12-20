@@ -49,14 +49,8 @@ class Logger implements ILogger {
     private $__sw_locks = []; //文件锁
 
     public function __construct(string $log_dir = '', string $log_file = '') {
-        $config             = Config::get('log');
-        $config['channels'] = array_map(function ($option) {
-            if (isset($option['line-format'])) {
-                $option['line-format'] = str_replace('%pid%', getmypid(), $option['line-format']);
-            }
-            return $option;
-        }, $config['channels']);
-        $this->__logger     = new ActuallyLogger($config);
+        $config         = Config::get('log');
+        $this->__logger = new ActuallyLogger($config);
     }
 
     /**
@@ -98,16 +92,27 @@ class Logger implements ILogger {
 
         $logger = $this->__logger;
 
-        $channel = 'channels.' . $category;
-        if ($logger->getConfig()->has($channel)) {
+        $channel_name = 'channels.' . $category;
+        if ($logger->getConfig()->has($channel_name)) {
             return $this;
         }
 
-        $log_dir = dirname($logger->getConfig()->get('channels.' . $logger->getConfig()->get('default') . '.path'));
-        $options = [
-                'path' => $log_dir . DIRECTORY_SEPARATOR . strtolower($category) . DIRECTORY_SEPARATOR . $category . '.log'
-            ] + $logger->getConfig()->get('channels.' . $logger->getConfig()->get('default'));
-        $logger->getConfig()->set($channel, $options);
+        $channel = $logger->getConfig()->get('channels.' . $logger->getConfig()->get('default'));
+        if (isset($channel[0])) {
+            $options = &$channel[0];
+        } else {
+            $options = &$channel;
+        }
+
+        $options['path'] = dirname($options['path']) . DIRECTORY_SEPARATOR . strtolower($category) . DIRECTORY_SEPARATOR . $category . '.log';
+
+        if (isset($channel[0])) {
+            $channel[0] = $options;
+        } else {
+            $channel = $options;
+        }
+
+        $logger->getConfig()->set($channel_name, $channel);
         return $this;
     }
 

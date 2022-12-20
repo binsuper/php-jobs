@@ -19,7 +19,7 @@ return array(
                 'path'        => GINO_JOBS_ROOT_PATH . '/var/logs/app.log',
                 'level'       => 'debug', // 日志级别, [debug, info, notice, warning, error, critical, alert, emergency]
                 'days'        => 180,
-                'line-format' => '[%datetime%] [PID.' . getmypid() . '] %channel%.%level_name%:  %message% %context% %extra%' . PHP_EOL,
+                'line-format' => '[%datetime%] [PID.%pid%] %channel%.%level_name%:  %message% %context% %extra%' . PHP_EOL,
                 'line-breaks' => true,
                 'line-tidy'   => true,
             ],
@@ -28,7 +28,7 @@ return array(
                 'path'        => GINO_JOBS_ROOT_PATH . '/var/logs/process/process.log',
                 'level'       => 'debug',
                 'days'        => 180,
-                'line-format' => '[%datetime%] [PID.' . getmypid() . '] %channel%.%level_name%: %message% %context% %extra%' . PHP_EOL,
+                'line-format' => '[%datetime%] [PID.%pid%] %channel%.%level_name%:  %message% %context% %extra%' . PHP_EOL,
             ]
         ],
         'drivers'  => [],
@@ -50,7 +50,7 @@ return array(
     'queue'    => [
         'default'  => [
             //redis
-            'class'            => \Gino\Jobs\Core\Queue\RedisQueue::class,
+            'driver'           => 'redis',
             'host'             => '10.19.9.114',
             'port'             => 6379,
             'pass'             => '123456',
@@ -59,7 +59,7 @@ return array(
         ],
         'rabbitmq' => [
             //rabiitmq
-            'class'   => \Gino\Jobs\Core\Queue\RabbitmqQueue::class,
+            'driver'  => 'rabbitmq',
             'host'    => '127.0.0.1',
             'port'    => 5672,
             'user'    => 'admin',

@@ -14,7 +14,7 @@ class Factory {
         'rabbitmq' => RabbitmqConnection::class,
     ];
 
-    /** @var array<IConnection> */
+    /** @var IConnection[][] */
     private static $connes = [];
 
     /**
@@ -76,6 +76,22 @@ class Factory {
             }
         }
         throw new \InvalidArgumentException("invalid driver '{$queue_class}'");
+    }
+
+    /**
+     * 管理所有连接
+     */
+    public static function closeAllConnections() {
+        $pid = getmypid();
+        if (!isset(static::$connes[$pid])) {
+            return;
+        }
+
+        foreach (static::$connes[$pid] as $conn) {
+            $conn->close();
+        }
+
+        static::$connes = [];
     }
 
 }

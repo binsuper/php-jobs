@@ -435,16 +435,6 @@ class Process {
                     $data                      = $this->getMasterInfo();
                     $this->__status            = $data['status'];
                     $this->__status_updatetime = microtime(true);
-                    //flush log
-                    Coroutine::create(function () use ($data) {
-                        $flush = $data['flush'] ?? false;
-                        if (false !== $flush && time() - $flush <= 30) {
-                            if (!isset($this->__flush_time) || $this->__flush_time < $flush) {
-                                $this->__flush_time = $flush;
-                                $this->_logger->flush();
-                            }
-                        }
-                    });
                 }
                 try {
                     //执行任务
@@ -717,7 +707,9 @@ class Process {
 
         //动态进程管理
         \Swoole\Process::signal(SIGALRM, function () {
-            $this->__checkDynamic();
+            if ($this->__status === static::STATUS_RUNNING) {
+                $this->__checkDynamic();
+            }
         });
 
         //子进程关闭信号

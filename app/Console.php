@@ -157,7 +157,6 @@ class Console {
                 $this->checkConfig();
                 break;
             case 'flush': //刷新日志
-                $this->flush();
                 break;
             case 'exec': // 执行脚本
                 $this->executeCommand(array_slice($this->__run_args, 1));

@@ -34,14 +34,6 @@ class RabbitmqConnection implements IConnection {
     /** @var AMQPStreamConnection|AMQPSSLConnection */
     private $conn;
 
-    public function __destruct() {
-        try {
-//            $this->close();
-        } catch (\Throwable $ex) {
-            // nothing
-        }
-    }
-
     /**
      * @inheritDoc
      */

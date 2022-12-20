@@ -26,7 +26,6 @@ class Test implements IConsumer, ICommand {
      * @return bool 执行成功返回true, 执行失败返回false
      */
     public function consume(IQueueMessage $msg): bool {
-        var_dump(time(), $msg->getBody());
         if ($msg instanceof QueueMsgGroup) {
 
             foreach ($msg as $m) {

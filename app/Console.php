@@ -50,7 +50,9 @@ class Console {
                         'path'        => $config->get('log.log_dir') . DIRECTORY_SEPARATOR . $config->get('log.log_file'),
                         'level'       => $config->get('log.log_level'),
                         'days'        => 180,
-                        'line-format' => '[%datetime%] [PID.' . getmypid() . '] %channel%.%level_name%:  %message% %context% %extra%' . PHP_EOL,
+                        'line-format' => function () {
+                            return '[%datetime%] [PID.' . getmypid() . '] %channel%.%level_name%:  %message% %context% %extra%' . PHP_EOL;
+                        },
                         'line-breaks' => true,
                         'line-tidy'   => true,
                     ],
@@ -59,7 +61,9 @@ class Console {
                         'path'        => $config->get('log.log_dir') . DIRECTORY_SEPARATOR . 'process' . DIRECTORY_SEPARATOR . $config->get('process.process_log_file'),
                         'level'       => $config->get('log.log_level'),
                         'days'        => 180,
-                        'line-format' => '[%datetime%] [PID.' . getmypid() . '] %channel%.%level_name%: %message% %context% %extra%' . PHP_EOL,
+                        'line-format' => function () {
+                            return '[%datetime%] [PID.' . getmypid() . '] %channel%.%level_name%:  %message% %context% %extra%' . PHP_EOL;
+                        },
                     ]
                 ]
             ]);

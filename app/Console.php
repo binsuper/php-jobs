@@ -188,7 +188,7 @@ class Console {
 {#g}  exec [job]        {##}execute [job] command
 
 HELP;
-        
+
         $rep = [
             '{#y}' => "\033[0;33m", //黄色
             '{#g}' => "\033[0;32m", //绿色

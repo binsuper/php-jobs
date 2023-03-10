@@ -16,8 +16,8 @@ use Gino\Phplib\ArrayObject;
  */
 class Console {
 
-    private   $__run_opts = [];
-    private   $__run_args = [];
+    private $__run_opts = [];
+    private $__run_args = [];
 
     public function __construct(array $config) {
         //检测配置信息
@@ -45,7 +45,7 @@ class Console {
             $config->set('log', [
                 'default'  => 'app',
                 'channels' => [
-                    'app' => [
+                    'app'     => [
                         'driver'      => 'daily',
                         'path'        => $config->get('log.log_dir') . DIRECTORY_SEPARATOR . $config->get('log.log_file'),
                         'level'       => $config->get('log.log_level'),
@@ -185,10 +185,10 @@ class Console {
 {#g}  status            {##}show status
 {#g}  zombie            {##}try killing the zombie process
 {#g}  check             {##}check the configuration
-{#g}  flush             {##}flush log to log_file
 {#g}  exec [job]        {##}execute [job] command
 
 HELP;
+        
         $rep = [
             '{#y}' => "\033[0;33m", //黄色
             '{#g}' => "\033[0;32m", //绿色
@@ -362,8 +362,11 @@ HELP;
 
     /**
      * 刷新日志
+     *
+     * @deprecated
      */
     public function flush() {
+        return;
         $master_process = Process::getProcess();
         $master_process->flush();
         echo 'flush log...' . PHP_EOL;

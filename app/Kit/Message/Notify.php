@@ -55,6 +55,7 @@ class Notify {
      * @param string $msg
      */
     public static function to($to, string $msg) {
+        static::init();
         if (!is_array($to)) {
             $to = [$to];
         }
@@ -62,7 +63,9 @@ class Notify {
         $to = array_intersect($to, array_keys(static::$__notifier));
 
         foreach ($to as $name) {
-            static::$__notifier[$name]->notify($msg);
+            if (isset(static::$__notifier[$name])) {
+                static::$__notifier[$name]->notify($msg);
+            }
         }
     }
 

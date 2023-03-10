@@ -4,6 +4,7 @@ namespace Gino\Jobs\Core;
 
 use Gino\Jobs\Core\IFace\IQueueDriver;
 use Gino\Jobs\Core\IFace\IConsumer;
+use Gino\Jobs\Core\IFace\IQueueMessage;
 use Gino\Jobs\Core\Queue\QueueMsgGroup;
 
 /**
@@ -216,7 +217,7 @@ class Jobs {
         try {
             $before_time = microtime(true);
             //消费消息
-            if ($this->__job->consume($msg)) {
+            if (false !== $this->__job->consume($msg)) {
                 $this->__done_count++;
                 $this->__last_busy_time = microtime(true);
                 $duration               = bcsub($this->__last_busy_time, $before_time, 10);
@@ -228,14 +229,20 @@ class Jobs {
             }
 
             if (!$is_group) {
-                if ($msg->isAck()) {
-                    $this->__ack_count++;
-                } else {
+                if ($msg->isReject()) {
                     $this->__reject_count++;
+                } else {
+                    $msg->ack(); // 自动回应
+                    $this->__ack_count++;
                 }
             } else {
-                $this->__ack_count    += $msg->acks();
+                // 自动响应
+                array_map(function ($m) {
+                    /** @var $m IQueueMessage */
+                    $m->ack();
+                }, (array)$msg);
                 $this->__reject_count += $msg->rejects();
+                $this->__ack_count    += $msg->count() - $msg->rejects();
             }
         } catch (\Throwable $ex) {
             //消费时发生错误

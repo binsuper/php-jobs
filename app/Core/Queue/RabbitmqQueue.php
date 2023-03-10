@@ -66,7 +66,7 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
 
     /**
      *
-     * @var string 路由名
+     * @var array 路由名
      */
     private $__binding_key;
 
@@ -166,7 +166,8 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
     }
 
     private function __construct(array $config, string $routing_key, string $exchange_name) {
-        $this->__binding_key   = $config['topic']['routing_key'] ?? $routing_key;
+        $this->__binding_key = $config['topic']['routing_key'] ?? $routing_key;
+        if (!is_array($this->__binding_key)) $this->__binding_key = [$this->__binding_key];
         $this->__exchange_name = $exchange_name;
         $this->__queue_name    = $exchange_name . '.' . $routing_key;
         $this->__host          = $config['host'] ?? '127.0.0.1';
@@ -271,8 +272,11 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
                         } else {
                             $this->__channel->queue_declare($this->__queue_name, false, true, false, false, false, $queue_arguments);
                         }
+
                         // 队列绑定交换器
-                        $this->__channel->queue_bind($this->__queue_name, $this->__exchange_name, $this->__binding_key);
+                        array_map(function ($binding_key) {
+                            $this->__channel->queue_bind($this->__queue_name, $this->__exchange_name, $binding_key);
+                        }, $this->__binding_key);
 
                         //设置消费者
                         if ($this->__is_consumer) {
@@ -463,7 +467,7 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
                     throw new ConnectionException();
                 }
                 $msg = new AMQPMessage($body);
-                $this->__channel->basic_publish($msg, $this->__exchange_name, $this->__binding_key);
+                $this->__channel->basic_publish($msg, $this->__exchange_name, $this->__binding_key[0]);
                 return true;
             });
         } catch (\Exception $ex) {
@@ -522,7 +526,7 @@ class RabbitmqQueue implements IQueueDriver, IQueueProducer {
         // 申明队列
         $channel->queue_declare($queue_name, false, true, false, false, false, [
             'x-dead-letter-exchange'    => [AMQPAbstractCollection::getSymbolForDataType(AMQPAbstractCollection::T_STRING_LONG), $this->__exchange_name],
-            'x-dead-letter-routing-key' => [AMQPAbstractCollection::getSymbolForDataType(AMQPAbstractCollection::T_STRING_LONG), $this->__binding_key],
+            'x-dead-letter-routing-key' => [AMQPAbstractCollection::getSymbolForDataType(AMQPAbstractCollection::T_STRING_LONG), $this->__binding_key[0]],
             'x-message-ttl'             => [AMQPAbstractCollection::getSymbolForDataType(AMQPAbstractCollection::T_INT_LONG), $ttl]
         ]);
 

@@ -362,6 +362,9 @@ class Process {
     protected function _registTopics() {
         $topics_config = Config::get('topics');
         foreach ($topics_config as $topic_info) {
+            if (false === ($topic_info['queue'] ?? '')) {
+                continue;
+            }
             $topic = new Topic($topic_info);
             if ($this->__opt_delay_enable) {
                 if ($topic->getName() === $this->__delay_queue['delay_queue_name']) {

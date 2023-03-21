@@ -156,9 +156,6 @@ class Console {
             case 'check': //检查配置是否正确
                 $this->checkConfig();
                 break;
-            case 'flush': //刷新日志
-                $this->flush();
-                break;
             case 'exec': // 执行脚本
                 $this->executeCommand(array_slice($this->__run_args, 1));
                 break;
@@ -286,6 +283,9 @@ HELP;
                 throw new \Exception('config<topics> must be a array');
             }
             foreach ($topics_config as $topic_info) {
+                if (false === ($topic_info['queue'] ?? '')) {
+                    continue;
+                }
                 if (empty($topic_info['name'])) {
                     throw new \Exception('topic\'s name must be a non-empty string');
                 }

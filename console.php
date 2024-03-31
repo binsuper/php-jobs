@@ -8,6 +8,8 @@ define('GINO_JOBS_CONFIG_PATH', GINO_JOBS_ROOT_PATH . '/conf/config.php');
 
 require_once GINO_JOBS_ROOT_PATH . '/vendor/autoload.php';
 
+Co::set(['hook_flags' => SWOOLE_HOOK_NATIVE_CURL]);
+
 $config  = include(GINO_JOBS_CONFIG_PATH);
 $console = new Gino\Jobs\Console($config);
 

@@ -16,7 +16,7 @@ use Swoole\Timer;
  */
 class Process {
 
-    const VERSION        = '1.24.1';
+    const VERSION        = '1.25.6';
     const STATUS_RUNNING = 'running';   //运行中
     const STATUS_WAIT    = 'wait';      //等待所有子进程平滑结束
     const STATUS_STOP    = 'stop';      //停止
@@ -348,9 +348,9 @@ class Process {
         // onStart
         $this->_notify('start', $this);
 
+        $this->_registTimer();
         $this->_registSignal();
         $this->_registTopics();
-        $this->_registTimer();
         $this->_forkDelayWork();
     }
 
